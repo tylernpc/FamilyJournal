@@ -2,7 +2,7 @@
 
 The API follows **iDesign (The Method)**: components are decomposed by *volatility*, not by feature. Each layer hides a different kind of change.
 
-::: mermaid
+```mermaid
 flowchart TD
     subgraph CLIENT["🌐 Client Tier"]
         C1[FamiliesController]
@@ -69,7 +69,7 @@ flowchart TD
     class A1,A2,A3,A4,A5,A6 accessor
     class DB,BLOB resource
     class BUS bus
-:::
+```
 
 ---
 
@@ -117,7 +117,7 @@ One manager per **use-case cluster** — not per entity. Managers own the "what 
 
 Managers never call each other. They publish events; interested managers consume them.
 
-::: mermaid
+```mermaid
 sequenceDiagram
     autonumber
     participant PC as PostsController
@@ -133,7 +133,7 @@ sequenceDiagram
     PM->>PC: PostDto (returns immediately)
     BUS-->>NM: consume PostCreated
     NM->>NA: CreateNotifications(tagged + family members)
-:::
+```
 
 **MVP events:** `PostCreated`, `CommentAdded`, `ReactionAdded`, `MemberJoined`, `MemberTagged`
 
