@@ -1,61 +1,94 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { CURRENT_USER_ID } from "@/lib/data";
 import { fullName, getPerson, kinship } from "@/lib/family";
 import { useStore } from "@/lib/store";
-import type { Post, ReactionType } from "@/lib/types";
-import { useDismiss } from "@/lib/use-dismiss";
+import type { Post } from "@/lib/types";
 import { Avatar } from "./avatar";
-import { CloseIcon, HeartIcon } from "./icons";
+import { EmojiPicker } from "./emoji-picker";
+import { CloseIcon, SmilePlusIcon } from "./icons";
 import { Sheet } from "./sheet";
 
-export const REACTIONS: { type: ReactionType; emoji: string; label: string }[] = [
-  { type: "love", emoji: "❤️", label: "Love" },
-  { type: "like", emoji: "👍", label: "Like" },
-  { type: "haha", emoji: "😆", label: "Haha" },
-  { type: "wow", emoji: "😮", label: "Wow" },
-  { type: "sad", emoji: "😢", label: "Sad" },
-];
-
-const emojiFor = (t: ReactionType) => REACTIONS.find((r) => r.type === t)!.emoji;
-
-function countsByType(post: Post) {
-  const counts = new Map<ReactionType, number>();
-  for (const r of post.reactions) counts.set(r.type, (counts.get(r.type) ?? 0) + 1);
+function countsByEmoji(post: Post) {
+  const counts = new Map<string, number>();
+  for (const r of post.reactions) counts.set(r.emoji, (counts.get(r.emoji) ?? 0) + 1);
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
 }
 
-// "Carol and 7 others"
+// Each emoji used on the post as a chip with its count, plus "+" for any other emoji.
+export function ReactionBar({ post }: { post: Post }) {
+  const { react } = useStore();
+  const [picking, setPicking] = useState(false);
+  const mine = post.reactions.find((r) => r.personId === CURRENT_USER_ID)?.emoji;
+
+  return (
+    <div className="relative flex flex-wrap items-center gap-1.5">
+      {countsByEmoji(post).map(([emoji, count]) => {
+        const isMine = emoji === mine;
+        return (
+          <button
+            key={emoji}
+            onClick={() => react(post.id, emoji)}
+            aria-pressed={isMine}
+            aria-label={`${emoji} ${count}${isMine ? ", yours" : ""}`}
+            className={`flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[14px] tabular-nums ${
+              isMine
+                ? "bg-ink font-semibold text-canvas"
+                : "bg-sunken text-ink-2 hover:bg-hover hover:text-ink"
+            }`}
+          >
+            <span className="text-[16px] leading-none">{emoji}</span>
+            {count}
+          </button>
+        );
+      })}
+      {/* The picker anchors to the whole row so it lines up with the post, not the button. */}
+      <div>
+        <button
+          onClick={() => setPicking((open) => !open)}
+          aria-label="Add reaction"
+          aria-expanded={picking}
+          className={`flex h-8 w-10 items-center justify-center rounded-full ${
+            picking ? "bg-ink text-canvas" : "bg-sunken text-ink-2 hover:bg-hover hover:text-ink"
+          }`}
+        >
+          <SmilePlusIcon size={19} />
+        </button>
+        {picking && (
+          <EmojiPicker
+            selected={mine}
+            onClose={() => setPicking(false)}
+            onPick={(emoji) => {
+              react(post.id, emoji);
+              setPicking(false);
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// "Carol, Luis and 6 others" — opens the list of who reacted with what.
 export function ReactionSummary({ post }: { post: Post }) {
   const [open, setOpen] = useState(false);
   if (!post.reactions.length) return null;
 
-  const counts = countsByType(post);
-  const others = post.reactions.filter((r) => r.personId !== CURRENT_USER_ID);
-  const mine = others.length !== post.reactions.length;
-  const lead = others[0] && getPerson(others[0].personId).firstName;
-  const rest = others.length - 1;
-  const label = mine
-    ? others.length
-      ? `You and ${others.length} other${others.length > 1 ? "s" : ""}`
-      : "You"
-    : rest > 0
-      ? `${lead} and ${rest} other${rest > 1 ? "s" : ""}`
-      : lead;
+  const names = post.reactions.map((r) =>
+    r.personId === CURRENT_USER_ID ? "You" : getPerson(r.personId).firstName,
+  );
+  // "You" reads best first.
+  names.sort((a, b) => (a === "You" ? -1 : b === "You" ? 1 : 0));
+  const label =
+    names.length <= 2
+      ? names.join(" and ")
+      : `${names.slice(0, 2).join(", ")} and ${names.length - 2} other${names.length - 2 > 1 ? "s" : ""}`;
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 text-[14px] text-ink-2 hover:text-ink"
-      >
-        <span className="flex -space-x-0.5 text-[13px]">
-          {counts.slice(0, 3).map(([type]) => (
-            <span key={type}>{emojiFor(type)}</span>
-          ))}
-        </span>
+      <button onClick={() => setOpen(true)} className="text-[13px] text-ink-3 hover:text-ink-2">
         {label}
       </button>
       {open && <ReactionsSheet post={post} onClose={() => setOpen(false)} />}
@@ -64,9 +97,9 @@ export function ReactionSummary({ post }: { post: Post }) {
 }
 
 function ReactionsSheet({ post, onClose }: { post: Post; onClose: () => void }) {
-  const [tab, setTab] = useState<ReactionType | "all">("all");
-  const counts = countsByType(post);
-  const list = post.reactions.filter((r) => tab === "all" || r.type === tab);
+  const [tab, setTab] = useState<string>("all");
+  const counts = countsByEmoji(post);
+  const list = post.reactions.filter((r) => tab === "all" || r.emoji === tab);
 
   return (
     <Sheet label="Reactions" onClose={onClose}>
@@ -75,9 +108,9 @@ function ReactionsSheet({ post, onClose }: { post: Post; onClose: () => void }) 
           <Tab active={tab === "all"} onClick={() => setTab("all")}>
             All {post.reactions.length}
           </Tab>
-          {counts.map(([type, n]) => (
-            <Tab key={type} active={tab === type} onClick={() => setTab(type)}>
-              {emojiFor(type)} {n}
+          {counts.map(([emoji, n]) => (
+            <Tab key={emoji} active={tab === emoji} onClick={() => setTab(emoji)}>
+              {emoji} {n}
             </Tab>
           ))}
         </div>
@@ -105,7 +138,7 @@ function ReactionsSheet({ post, onClose }: { post: Post; onClose: () => void }) 
                   {r.personId === CURRENT_USER_ID ? "You" : kinship(CURRENT_USER_ID, r.personId)}
                 </span>
               </span>
-              <span className="text-[20px]">{emojiFor(r.type)}</span>
+              <span className="text-[22px]">{r.emoji}</span>
             </Link>
           </li>
         ))}
@@ -132,87 +165,5 @@ function Tab({
     >
       {children}
     </button>
-  );
-}
-
-// Tap to love; hold (touch) or hover (mouse) for the other reactions.
-export function ReactButton({ post }: { post: Post }) {
-  const { react } = useStore();
-  const [picker, setPicker] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const wrap = useRef<HTMLDivElement>(null);
-  const longPressed = useRef(false);
-  useDismiss(wrap, picker, () => setPicker(false));
-
-  const mine = post.reactions.find((r) => r.personId === CURRENT_USER_ID);
-
-  const later = (fn: () => void, ms: number) => {
-    clearTimeout(timer.current);
-    timer.current = setTimeout(fn, ms);
-  };
-
-  return (
-    <div
-      ref={wrap}
-      className="relative"
-      onPointerEnter={(e) => e.pointerType === "mouse" && later(() => setPicker(true), 450)}
-      onPointerLeave={(e) => e.pointerType === "mouse" && later(() => setPicker(false), 250)}
-    >
-      <button
-        aria-label={mine ? `Remove ${mine.type}` : "Love"}
-        onPointerDown={(e) => {
-          if (e.pointerType === "mouse") return;
-          longPressed.current = false;
-          later(() => {
-            longPressed.current = true;
-            setPicker(true);
-          }, 400);
-        }}
-        onPointerUp={() => clearTimeout(timer.current)}
-        onPointerCancel={() => clearTimeout(timer.current)}
-        onContextMenu={(e) => e.preventDefault()}
-        onClick={() => {
-          if (longPressed.current) {
-            longPressed.current = false;
-            return;
-          }
-          setPicker(false);
-          react(post.id, mine?.type ?? "love");
-        }}
-        className="-ml-2 flex h-10 w-10 select-none items-center justify-center rounded-full [-webkit-touch-callout:none] hover:bg-hover"
-      >
-        {!mine ? (
-          <HeartIcon size={25} />
-        ) : mine.type === "love" ? (
-          <HeartIcon size={25} filled className="text-signal" />
-        ) : (
-          <span className="text-[21px] leading-none">{emojiFor(mine.type)}</span>
-        )}
-      </button>
-      {picker && (
-        <div
-          role="menu"
-          className="absolute bottom-full left-[-8px] z-20 mb-1 flex gap-0.5 rounded-full bg-surface p-1.5 shadow-pop ring-1 ring-line"
-        >
-          {REACTIONS.map((r) => (
-            <button
-              key={r.type}
-              role="menuitem"
-              title={r.label}
-              aria-label={r.label}
-              onClick={() => {
-                react(post.id, r.type);
-                setPicker(false);
-              }}
-              className={`flex h-10 w-10 items-center justify-center rounded-full text-[24px] transition-transform hover:-translate-y-1 hover:scale-110 ${
-                mine?.type === r.type ? "bg-sunken" : ""
-              }`}
-            >
-              {r.emoji}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }

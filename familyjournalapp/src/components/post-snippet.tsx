@@ -4,7 +4,7 @@ import Image from "next/image";
 import { getPerson, peopleInPost, relativeTime } from "@/lib/family";
 import type { Post } from "@/lib/types";
 import { Avatar } from "./avatar";
-import { LIFE_EVENTS } from "./life-event";
+import { lifeEventLabel } from "@/lib/life-events";
 
 // Compact post row for side panels and profile lists.
 export function PostSnippet({
@@ -20,7 +20,7 @@ export function PostSnippet({
 }) {
   const involved = peopleInPost(post);
   const author = getPerson(post.authorId);
-  const meta = post.lifeEvent && LIFE_EVENTS[post.lifeEvent.type];
+  const meta = post.lifeEvent && { label: lifeEventLabel(post.lifeEvent) };
   const thumb = post.photos?.[0];
 
   return (

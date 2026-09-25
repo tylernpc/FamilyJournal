@@ -11,7 +11,7 @@ import { Avatar } from "./avatar";
 const VERB: Record<AppNotification["type"], string> = {
   postCreated: "shared",
   commentAdded: "commented:",
-  reactionAdded: "loved your post",
+  reactionAdded: "reacted to your post",
   memberJoined: "joined the family journal",
   memberTagged: "tagged you in",
 };
@@ -61,6 +61,7 @@ export function NotificationList() {
                     <span className="min-w-0 flex-1 text-[15px] leading-snug">
                       <span className="font-semibold">{fullName(actor)}</span>{" "}
                       <span className="text-ink-2">{VERB[n.type]}</span>
+                      {n.emoji && <span> {n.emoji}</span>}
                       {n.preview && <span> “{n.preview}”</span>}{" "}
                       <span className="text-ink-3">{relativeTime(n.createdAt)}</span>
                     </span>

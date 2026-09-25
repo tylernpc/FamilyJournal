@@ -4,15 +4,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { CURRENT_USER_ID } from "@/lib/data";
-import { fullName, getPerson, kinship, lifespan, longDate, relativeTime } from "@/lib/family";
+import { eventCover, fullName, getPerson, kinship, lifespan, longDate, relativeTime } from "@/lib/family";
+import { lifeEventLabel } from "@/lib/life-events";
 import { useStore } from "@/lib/store";
 import type { Photo, Post } from "@/lib/types";
 import { Avatar } from "./avatar";
 import { CommentIcon, MoreIcon } from "./icons";
-import { LIFE_EVENTS } from "./life-event";
 import { MentionInput } from "./mention-input";
 import { MentionText } from "./mention-text";
-import { ReactButton, ReactionSummary } from "./reactions";
+import { ReactionBar, ReactionSummary } from "./reactions";
 
 function Name({ id }: { id: string }) {
   return (
@@ -57,8 +57,10 @@ function eventLine(post: Post) {
   const event = post.lifeEvent!;
   const subject = post.tagged[0] ? getPerson(post.tagged[0]) : undefined;
   const when =
-    event.type === "memorial" && subject ? lifespan(subject) : longDate(event.date);
-  return `${LIFE_EVENTS[event.type].label} · ${when}`;
+    (event.type === "memorial" || event.type === "passing") && subject
+      ? lifespan(subject)
+      : longDate(event.date);
+  return `${lifeEventLabel(event)} · ${when}`;
 }
 
 export function PostCard({ post }: { post: Post }) {
@@ -71,7 +73,8 @@ export function PostCard({ post }: { post: Post }) {
     post.authorId === CURRENT_USER_ID ? null : kinship(CURRENT_USER_ID, post.authorId);
   const hidden = showAll ? 0 : Math.max(0, post.comments.length - 2);
   const comments = post.comments.slice(hidden);
-  const photos = post.photos ?? [];
+  const cover = eventCover(post);
+  const photos = post.photos?.length ? post.photos : cover ? [cover] : [];
 
   const submit = () => {
     const text = draft.trim();
@@ -118,18 +121,20 @@ export function PostCard({ post }: { post: Post }) {
         </p>
       )}
 
-      <div className="flex items-center gap-1 px-4 pt-2">
-        <ReactButton post={post} />
+      <div className="flex items-start gap-2 px-4 pt-3">
+        <div className="min-w-0 flex-1">
+          <ReactionBar post={post} />
+        </div>
         <button
           onClick={() => inputRef.current?.focus()}
           aria-label="Comment"
-          className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-hover"
+          className="-mr-2 flex h-8 w-10 shrink-0 items-center justify-center rounded-full hover:bg-hover"
         >
-          <CommentIcon size={24} />
+          <CommentIcon size={23} />
         </button>
-        <div className="ml-auto">
-          <ReactionSummary post={post} />
-        </div>
+      </div>
+      <div className="px-4 pt-1.5">
+        <ReactionSummary post={post} />
       </div>
 
       {(comments.length > 0 || hidden > 0) && (

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState } from "react";
 import { CURRENT_USER_ID, NOW, initialNotifications, initialPosts } from "./data";
-import type { AppNotification, LifeEvent, Photo, Post, ReactionType } from "./types";
+import type { AppNotification, LifeEvent, Photo, Post } from "./types";
 
 // In-memory stand-in for the API until the endpoints exist.
 
@@ -13,7 +13,8 @@ type Store = {
   notifications: AppNotification[];
   unreadCount: number;
   addPost: (post: NewPost) => void;
-  react: (postId: string, type: ReactionType) => void;
+  // Same emoji again removes it; a different one replaces yours.
+  react: (postId: string, emoji: string) => void;
   addComment: (postId: string, text: string) => void;
   markAllRead: () => void;
   // The new-post sheet can be opened from anywhere, optionally with people pre-tagged.
@@ -51,13 +52,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         },
         ...all,
       ]),
-    react: (postId, type) =>
+    react: (postId, emoji) =>
       updatePost(postId, (p) => {
         const mine = p.reactions.find((r) => r.personId === CURRENT_USER_ID);
         const others = p.reactions.filter((r) => r.personId !== CURRENT_USER_ID);
-        // Same reaction again removes it, like every other app.
-        if (mine?.type === type) return { ...p, reactions: others };
-        return { ...p, reactions: [...others, { personId: CURRENT_USER_ID, type }] };
+        if (mine?.emoji === emoji) return { ...p, reactions: others };
+        return { ...p, reactions: [...others, { personId: CURRENT_USER_ID, emoji }] };
       }),
     addComment: (postId, text) =>
       updatePost(postId, (p) => ({

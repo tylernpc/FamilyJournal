@@ -1,5 +1,4 @@
 using FamilyJournalApi.Common;
-using FamilyJournalApi.Common.Enum;
 
 namespace FamilyJournalApi.Accessors.Entities;
 
@@ -9,7 +8,8 @@ public class Reaction : IdGeneratedModel
 
     public Guid ProfileId { get; set; }
 
-    public ReactionType Type { get; set; }
+    // Any emoji as its Unicode string, e.g. "❤️" or "👍🏽".
+    public string Emoji { get; set; } = string.Empty;
 
     public DateTimeOffset CreatedAt { get; set; }
 

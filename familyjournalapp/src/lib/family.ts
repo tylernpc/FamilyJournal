@@ -1,5 +1,5 @@
 import { NOW, people, relationships } from "./data";
-import type { Person, Post } from "./types";
+import type { Person, Photo, Post } from "./types";
 
 const byId = new Map(people.map((p) => [p.id, p]));
 
@@ -263,6 +263,16 @@ export function companions(posts: Post[], personId: string) {
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1])
     .map(([id, count]) => ({ id, count }));
+}
+
+// Life events always get the text-over-photo treatment. Without a photo of their own,
+// they use the portrait of the person the event is about.
+export function eventCover(post: Post): Photo | undefined {
+  if (!post.lifeEvent) return undefined;
+  if (post.photos?.length) return post.photos[0];
+  const subject = getPerson(post.tagged[0] ?? post.authorId);
+  const src = photoUrl(subject, 600, 450);
+  return src ? { src, alt: fullName(subject), width: 1200, height: 900 } : undefined;
 }
 
 export function sharedPosts(posts: Post[], a: string, b: string) {

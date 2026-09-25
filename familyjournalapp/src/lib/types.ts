@@ -35,9 +35,8 @@ export type Relationship = {
   since?: string;
 };
 
-export type ReactionType = "like" | "love" | "haha" | "sad" | "wow";
-
-export type Reaction = { personId: string; type: ReactionType };
+// Any emoji, stored as its Unicode string (e.g. "❤️", "👍🏽"). One reaction per person per post.
+export type Reaction = { personId: string; emoji: string };
 
 export type Comment = {
   id: string;
@@ -46,16 +45,13 @@ export type Comment = {
   createdAt: string;
 };
 
-export type LifeEventType =
-  | "birth"
-  | "marriage"
-  | "graduation"
-  | "newJob"
-  | "memorial"
-  | "anniversary";
+export type { LifeEventType } from "./life-events";
+import type { LifeEventType } from "./life-events";
 
 export type LifeEvent = {
   type: LifeEventType;
+  // Only for type "custom": the name people gave their event.
+  label?: string;
   title: string;
   date: string;
 };
@@ -94,4 +90,5 @@ export type AppNotification = {
   createdAt: string;
   read: boolean;
   preview?: string;
+  emoji?: string;
 };

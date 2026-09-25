@@ -3,7 +3,6 @@ import type {
   Person,
   Post,
   Reaction,
-  ReactionType,
   Relationship,
 } from "./types";
 
@@ -231,13 +230,13 @@ export const relationships: Relationship[] = [
 ];
 
 function reactions(spec: string): Reaction[] {
-  // "carol:love nate:like" -> Reaction[]
+  // "carol:❤️ nate:😂" -> Reaction[]
   return spec
     .split(" ")
     .filter(Boolean)
     .map((pair) => {
       const [personId, type] = pair.split(":");
-      return { personId, type: type as ReactionType };
+      return { personId, emoji: type };
     });
 }
 
@@ -265,7 +264,7 @@ export const initialPosts: Post[] = [
     ],
     tagged: ["diego"],
     reactions: reactions(
-      "carol:love luis:love ana:like emma:like nate:wow robert:like diane:love sam:like",
+      "carol:🥹 luis:❤️ ana:🎉 emma:🎉 nate:😮 robert:👏 diane:❤️ sam:👏",
     ),
     comments: [
       {
@@ -299,7 +298,7 @@ export const initialPosts: Post[] = [
     ],
     tagged: ["june", "iris"],
     reactions: reactions(
-      "carol:love diane:love robert:love ana:love sam:like nate:haha luis:like",
+      "carol:🥧 diane:❤️ robert:❤️ ana:🥹 sam:❤️ nate:😂 luis:🥧",
     ),
     comments: [
       {
@@ -326,7 +325,9 @@ export const initialPosts: Post[] = [
       photo("photo-1654124803041-79f3cc14a9db", "A page from the logbook"),
     ],
     tagged: ["walter"],
-    reactions: reactions("carol:love emma:love nate:wow diego:like ana:love"),
+    reactions: reactions(
+      "carol:❤️ emma:❤️ nate:😮 diego:👍 ana:❤️",
+    ),
     comments: [
       {
         id: "c6",
@@ -339,6 +340,29 @@ export const initialPosts: Post[] = [
         authorId: "emma",
         text: "Yes please. I'll add the scans to Grandpa's profile once you have them.",
         createdAt: "2026-09-18T19:15:00-06:00",
+      },
+    ],
+  },
+  {
+    id: "p-iris-tooth",
+    authorId: "sam",
+    createdAt: "2026-09-16T18:20:00-06:00",
+    lifeEvent: {
+      type: "lostTooth",
+      title: "Iris lost her first tooth",
+      date: "2026-09-16",
+    },
+    text: "Bottom front, mid-dinner, straight into the mashed potatoes. The tooth fairy has been notified and says she is \"very busy this week.\"",
+    tagged: ["iris"],
+    reactions: reactions(
+      "emma:🦷 diane:😂 robert:😂 carol:🥹 ana:🧚",
+    ),
+    comments: [
+      {
+        id: "c14",
+        authorId: "robert",
+        text: "Going rate is a dollar now? In my day it was a quarter and a firm handshake.",
+        createdAt: "2026-09-16T19:02:00-06:00",
       },
     ],
   },
@@ -357,7 +381,7 @@ export const initialPosts: Post[] = [
     ],
     tagged: ["carol", "luis"],
     reactions: reactions(
-      "carol:love luis:love diego:love emma:love robert:love diane:love nate:like sam:like",
+      "carol:❤️ luis:❤️ diego:❤️ emma:❤️ robert:❤️ diane:❤️ nate:👍 sam:👍",
     ),
     comments: [
       {
@@ -372,10 +396,17 @@ export const initialPosts: Post[] = [
     id: "p-nate-move",
     authorId: "nate",
     createdAt: "2026-09-10T19:48:00-06:00",
+    lifeEvent: {
+      type: "moved",
+      title: "Nate moved to Boulder",
+      date: "2026-09-08",
+    },
     text: "Officially moved. The apartment has zero furniture and one very good view of the Flatirons. Guest air mattress is available for anyone who wants to visit (please visit).",
     photos: [photo("photo-1705215873044-308705fb4653", "The Flatirons from Nate's balcony", 1200, 900)],
     tagged: [],
-    reactions: reactions("diane:love robert:like emma:haha ana:like"),
+    reactions: reactions(
+      "diane:❤️ robert:👍 emma:😂 ana:👍",
+    ),
     comments: [
       {
         id: "c9",
@@ -406,7 +437,7 @@ export const initialPosts: Post[] = [
     ],
     tagged: ["theo", "emma", "iris"],
     reactions: reactions(
-      "emma:love robert:love diane:love carol:love luis:love ana:love diego:love nate:love",
+      "emma:❤️ robert:🥹 diane:❤️ carol:👶 luis:❤️ ana:🥹 diego:🎉 nate:👶",
     ),
     comments: [
       {
@@ -424,6 +455,32 @@ export const initialPosts: Post[] = [
     ],
   },
   {
+    id: "p-iris-school",
+    authorId: "emma",
+    createdAt: "2026-08-19T08:05:00-06:00",
+    lifeEvent: {
+      type: "firstDayOfSchool",
+      title: "Iris starts second grade",
+      date: "2026-08-19",
+    },
+    text: "New backpack, same firm refusal to let me take a picture from the front. She informed me second graders \"don't need walking to the door.\" I walked her to the door.",
+    photos: [
+      photo("photo-1504424715129-fa3bcb0b8903", "Iris walking into school with her backpack"),
+    ],
+    tagged: ["iris"],
+    reactions: reactions(
+      "sam:❤️ diane:🥹 robert:🎒 carol:🍎 ana:❤️",
+    ),
+    comments: [
+      {
+        id: "c15",
+        authorId: "carol",
+        text: "Thirty years of first days and it still gets me. Tell her Aunt Carol says good luck.",
+        createdAt: "2026-08-19T09:40:00-06:00",
+      },
+    ],
+  },
+  {
     id: "p-walter-memorial",
     authorId: "carol",
     createdAt: "2026-08-12T09:00:00-06:00",
@@ -434,7 +491,9 @@ export const initialPosts: Post[] = [
     },
     text: "Seven years today. Dad would have spent this morning at the hardware store even though he sold it in '92, telling the new owners how to organize the fasteners. We miss you.",
     tagged: ["walter", "june", "robert"],
-    reactions: reactions("robert:sad emma:love diane:love nate:love ana:love diego:love"),
+    reactions: reactions(
+      "robert:🕯️ emma:❤️ diane:🕯️ nate:❤️ ana:🙏 diego:🙏",
+    ),
     comments: [
       {
         id: "c13",
@@ -443,6 +502,49 @@ export const initialPosts: Post[] = [
         createdAt: "2026-08-12T10:30:00-06:00",
       },
     ],
+  },
+  {
+    id: "p-robert-retire",
+    authorId: "diane",
+    createdAt: "2026-07-01T20:10:00-06:00",
+    lifeEvent: {
+      type: "retirement",
+      title: "Robert retires after 38 years with the city",
+      date: "2026-06-30",
+    },
+    text: "Thirty-eight years of bridges, culverts and one very famous argument about a roundabout. The department threw him a party with far too many cupcakes. He has already reorganized the garage twice.",
+    photos: [
+      photo("photo-1768851142407-c663a54d70b8", "Cupcakes from Robert's retirement party", 1200, 900),
+    ],
+    tagged: ["robert"],
+    reactions: reactions(
+      "emma:🎉 nate:🎉 carol:👏 luis:🍻 ana:🎉 diego:👏 sam:🙌",
+    ),
+    comments: [
+      {
+        id: "c16",
+        authorId: "nate",
+        text: "Dad, the garage was fine the first time.",
+        createdAt: "2026-07-01T20:45:00-06:00",
+      },
+    ],
+  },
+  {
+    id: "p-juniper",
+    authorId: "sam",
+    createdAt: "2026-06-21T12:30:00-06:00",
+    lifeEvent: {
+      type: "newPet",
+      title: "Meet Juniper",
+      date: "2026-06-20",
+    },
+    text: "Iris named her after Grandma June, which Grandma June has decided is the highest honor of her life. Nine weeks old, already eaten one shoe.",
+    photos: [photo("photo-1591160690555-5debfba289f0", "Juniper, a golden retriever puppy")],
+    tagged: ["emma", "iris", "june"],
+    reactions: reactions(
+      "diane:🐶 robert:❤️ carol:😍 ana:🐶 nate:😂 diego:🐾",
+    ),
+    comments: [],
   },
   {
     id: "p-ana-grad",
@@ -458,7 +560,9 @@ export const initialPosts: Post[] = [
       photo("photo-1523580846011-d3a5bc25702b", "Ana at commencement"),
     ],
     tagged: ["ana", "carol"],
-    reactions: reactions("carol:love diego:love emma:love diane:like robert:like"),
+    reactions: reactions(
+      "carol:❤️ diego:❤️ emma:❤️ diane:👍 robert:👍",
+    ),
     comments: [],
   },
 ];
@@ -494,6 +598,7 @@ export const initialNotifications: AppNotification[] = [
   {
     id: "n4",
     type: "reactionAdded",
+    emoji: "❤️",
     actorId: "robert",
     postId: "p-pie",
     createdAt: "2026-09-21T16:58:00-06:00",

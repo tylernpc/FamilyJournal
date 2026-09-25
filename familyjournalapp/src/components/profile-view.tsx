@@ -8,6 +8,7 @@ import {
   age,
   childrenOf,
   companions,
+  eventCover,
   fullName,
   getPerson,
   kinship,
@@ -18,11 +19,11 @@ import {
   siblingsOf,
   spouseOf,
 } from "@/lib/family";
+import { lifeEventLabel } from "@/lib/life-events";
 import { useStore } from "@/lib/store";
 import type { LifeEventType, Person, Post } from "@/lib/types";
 import { Avatar } from "./avatar";
 import { CakeIcon, MailIcon, PeopleIcon, PinIcon } from "./icons";
-import { LIFE_EVENTS } from "./life-event";
 import { PortraitCard } from "./portrait-card";
 import { PostCard } from "./post-card";
 import { Sheet } from "./sheet";
@@ -30,6 +31,7 @@ import { Sheet } from "./sheet";
 type TimelineEntry = {
   date: string;
   type: LifeEventType;
+  label?: string;
   title: string;
   detail?: string;
   postId?: string;
@@ -78,9 +80,9 @@ function timelineFor(person: Person, posts: Post[]): TimelineEntry[] {
     const ev = post.lifeEvent;
     // Births and memorials are already covered by profile facts.
     if (ev.type === "birth" && ev.date === person.birthDate) continue;
-    if (ev.type === "memorial") continue;
+    if (ev.type === "memorial" || ev.type === "passing") continue;
     if (ev.type === "birth" && childrenOf(person.id).length) continue;
-    entries.push({ date: ev.date, type: ev.type, title: ev.title, postId: post.id });
+    entries.push({ date: ev.date, type: ev.type, label: ev.label, title: ev.title, postId: post.id });
   }
 
   if (person.deathDate) {
@@ -260,7 +262,7 @@ function Moments({
   return (
     <div className="grid grid-cols-3 gap-0.5 pt-0.5">
       {posts.map((post) => {
-        const photo = post.photos?.[0];
+        const photo = post.photos?.[0] ?? eventCover(post);
         return (
           <button
             key={post.id}
@@ -280,7 +282,7 @@ function Moments({
               <span className="flex h-full flex-col justify-end p-3">
                 {post.lifeEvent && (
                   <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-3">
-                    {LIFE_EVENTS[post.lifeEvent.type].label}
+                    {lifeEventLabel(post.lifeEvent)}
                   </span>
                 )}
                 <span className="display line-clamp-4 text-[17px] sm:text-[20px]">
@@ -319,7 +321,7 @@ function Timeline({
             </span>
             <div className="min-w-0 flex-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">
-                {LIFE_EVENTS[e.type].label}
+                {lifeEventLabel(e)}
               </div>
               <div className="mt-0.5 text-[16px] font-semibold leading-snug">{e.title}</div>
               <div className="mt-0.5 text-[14px] text-ink-3">

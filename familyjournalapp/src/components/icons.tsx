@@ -243,3 +243,12 @@ export const ChevronLeftIcon = (p: IconProps) => (
     <path d="M12 5.5 7.5 10l4.5 4.5" />
   </Icon>
 );
+
+export const SmilePlusIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M16.9 9.2A7 7 0 1 1 10.8 3" />
+    <path d="M7 11.75c.7.95 1.75 1.5 3 1.5s2.3-.55 3-1.5" />
+    <path d="M7.5 8h.01M12.5 8h.01" strokeWidth={2.25} />
+    <path d="M15.5 1.75v4.5M13.25 4h4.5" />
+  </Icon>
+);

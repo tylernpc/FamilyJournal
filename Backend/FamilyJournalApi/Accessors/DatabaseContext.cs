@@ -26,6 +26,10 @@ public class DatabaseContext : DbContext
             .HasIndex(r => new { r.PostId, r.ProfileId })
             .IsUnique();
 
+        modelBuilder.Entity<Reaction>()
+            .Property(r => r.Emoji)
+            .HasMaxLength(32);
+
         modelBuilder.Entity<Invite>()
             .HasIndex(i => i.Token)
             .IsUnique();
