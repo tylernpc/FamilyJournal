@@ -1,26 +1,150 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --canvas: #f6f4ef;
+  --surface: #ffffff;
+  --sunken: #efece5;
+  --hover: #f3f0ea;
+  --line: #e5e0d6;
+  --line-strong: #d2cbbe;
+  --ink: #1f1d1a;
+  --ink-2: #57534b;
+  --ink-3: #8a857b;
+  --accent: #3b6a4f;
+  --accent-hover: #325b43;
+  --accent-soft: #e5ede6;
+  --accent-ink: #2c5039;
+  --danger: #a4412f;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Life event categories: quiet tints, never louder than the content. */
+  --ev-birth: #3f6690;
+  --ev-birth-bg: #eaf0f6;
+  --ev-marriage: #8a4b3e;
+  --ev-marriage-bg: #f5ebe7;
+  --ev-graduation: #5a6a2c;
+  --ev-graduation-bg: #eef1e3;
+  --ev-job: #7a5a22;
+  --ev-job-bg: #f4eee1;
+  --ev-memorial: #5b5750;
+  --ev-memorial-bg: #efeeeb;
+  --ev-anniversary: #7e4863;
+  --ev-anniversary-bg: #f4ebef;
+
+  --tree-line: #c9c1b3;
+
+  /* Avatar tones */
+  --tone-1: #e2d3bd;
+  --tone-2: #cfdccb;
+  --tone-3: #d3dbe4;
+  --tone-4: #e5d0cb;
+  --tone-5: #ddd6bf;
+  --tone-6: #d9d0de;
+  --tone-ink: #3a352d;
+  --shadow-pop: 0 1px 2px rgb(31 29 26 / 0.06), 0 8px 24px rgb(31 29 26 / 0.1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --canvas: #151412;
+    --surface: #1c1b19;
+    --sunken: #121110;
+    --hover: #24221f;
+    --line: #2d2b27;
+    --line-strong: #3d3a35;
+    --ink: #ece8e1;
+    --ink-2: #b1aba0;
+    --ink-3: #7f7a71;
+    --accent: #7fae8f;
+    --accent-hover: #93bea2;
+    --accent-soft: #22302a;
+    --accent-ink: #a6cdb2;
+    --danger: #e08b78;
+
+    --ev-birth: #93b4d6;
+    --ev-birth-bg: #1e2630;
+    --ev-marriage: #d9a194;
+    --ev-marriage-bg: #2c211e;
+    --ev-graduation: #b5c283;
+    --ev-graduation-bg: #242819;
+    --ev-job: #d4b67e;
+    --ev-job-bg: #2b2519;
+    --ev-memorial: #b1aba0;
+    --ev-memorial-bg: #22211f;
+    --ev-anniversary: #d6a3bb;
+    --ev-anniversary-bg: #2c1f25;
+
+    --tree-line: #45413a;
+
+    --tone-1: #4a3f31;
+    --tone-2: #34433a;
+    --tone-3: #333d49;
+    --tone-4: #4a3632;
+    --tone-5: #444030;
+    --tone-6: #3f3746;
+    --tone-ink: #e6e0d6;
+    --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.45);
   }
 }
 
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-hover: var(--hover);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-danger: var(--danger);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), Georgia, serif;
+  --shadow-pop: var(--shadow-pop);
+}
+
+html {
+  color-scheme: light dark;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+/* iOS Safari zooms the page when focusing a field under 16px. */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }
