@@ -7,7 +7,8 @@ import "./globals.css";
 const newsreader = Newsreader({
   variable: "--font-newsreader",
   subsets: ["latin"],
-  weight: ["400", "500"],
+  // Variable font; the optical-size axis gives the display cut at large sizes.
+  axes: ["opsz"],
   style: ["normal", "italic"],
 });
 
@@ -25,7 +26,7 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#1c1b19" },
+    { media: "(prefers-color-scheme: dark)", color: "#0c0c0c" },
   ],
 };
 

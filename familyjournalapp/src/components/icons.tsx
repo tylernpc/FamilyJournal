@@ -210,3 +210,36 @@ export const CalendarIcon = (p: IconProps) => (
     <path d="M3 8.5h14M7 3v3M13 3v3" />
   </Icon>
 );
+
+export const HomeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3.5 8.5 10 3.5l6.5 5V16a1 1 0 0 1-1 1h-3.25v-4.5h-4.5V17H4.5a1 1 0 0 1-1-1V8.5Z" />
+  </Icon>
+);
+
+export const HeartIcon = ({ filled = false, ...p }: IconProps & { filled?: boolean }) => (
+  <Icon {...p} fill={filled ? "currentColor" : "none"}>
+    <path d="M10 16.25s-6.25-3.6-6.25-8.1A3.4 3.4 0 0 1 10 6.3a3.4 3.4 0 0 1 6.25 1.85c0 4.5-6.25 8.1-6.25 8.1Z" />
+  </Icon>
+);
+
+export const PinIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M10 17.25s5.25-4.6 5.25-9A5.25 5.25 0 0 0 4.75 8.25c0 4.4 5.25 9 5.25 9Z" />
+    <circle cx="10" cy="8.25" r="1.9" />
+  </Icon>
+);
+
+export const CakeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3.5 17h13M4.5 17v-5.5a1.5 1.5 0 0 1 1.5-1.5h8a1.5 1.5 0 0 1 1.5 1.5V17" />
+    <path d="M4.5 13.25c1.1 0 1.1.9 2.2.9s1.1-.9 2.2-.9 1.1.9 2.2.9 1.1-.9 2.2-.9 1.1.9 2.2.9" />
+    <path d="M10 10V7.5M10 5.25c-.6-.5-.7-1.2 0-2 .7.8.6 1.5 0 2Z" />
+  </Icon>
+);
+
+export const ChevronLeftIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 5.5 7.5 10l4.5 4.5" />
+  </Icon>
+);

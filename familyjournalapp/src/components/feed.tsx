@@ -1,213 +1,125 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
-import { CURRENT_USER_ID, people } from "@/lib/data";
-import { fullName, getPerson, kinship, longDate, postInvolves } from "@/lib/family";
+import { NOW, people } from "@/lib/data";
+import { getPerson, isRecent, peopleInPost, photoUrl, postInvolves } from "@/lib/family";
 import { useStore } from "@/lib/store";
-import { useDismiss } from "@/lib/use-dismiss";
-import { Avatar } from "./avatar";
-import { Composer } from "./composer";
-import { CheckIcon, ChevronDownIcon, ChevronRightIcon } from "./icons";
+import type { Post } from "@/lib/types";
+import { CloseIcon, PlusIcon } from "./icons";
 import { PostCard } from "./post-card";
 
-export function Feed({ personFilter, initialTags }: { personFilter?: string; initialTags: string[] }) {
-  const { posts } = useStore();
-  const [eventsOnly, setEventsOnly] = useState(false);
+const dayFormat = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
 
-  const visible = posts.filter(
-    (p) => (!personFilter || postInvolves(p, personFilter)) && (!eventsOnly || p.lifeEvent),
-  );
+function weekOf(date: Date) {
+  // ISO week number, Monday-based.
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+
+  const monday = new Date(date);
+  monday.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { week, range: `${dayFormat.format(monday)} – ${dayFormat.format(sunday)}` };
+}
+
+export function Feed({ personFilter }: { personFilter?: string }) {
+  const { posts } = useStore();
+  const visible = posts.filter((p) => !personFilter || postInvolves(p, personFilter));
+  const { week, range } = weekOf(NOW);
+  const thisWeek = posts.filter((p) => isRecent(p.createdAt));
 
   return (
-    <div className="mx-auto flex w-full max-w-[1000px] gap-8 py-0 sm:px-6 sm:py-8">
-      <div className="min-w-0 flex-1 space-y-3 sm:max-w-[600px]">
-        <Composer key={initialTags.join(",")} initialTags={initialTags} />
+    <div className="mx-auto w-full max-w-[600px] pb-10">
+      <div className="px-4 pb-1 pt-6 lg:pt-10">
+        <h1 className="display text-[40px]">Week {week}</h1>
+        <p className="mt-1.5 text-[14px] text-ink-3">
+          {range} · {thisWeek.length} {thisWeek.length === 1 ? "post" : "posts"} from the family
+        </p>
+      </div>
 
-        <div className="flex items-center gap-2 px-4 pt-3 sm:px-0">
-          <PersonFilter value={personFilter} />
-          <div className="ml-auto flex rounded-md border border-line bg-surface p-0.5 text-[13px]">
-            {[
-              { label: "All posts", value: false },
-              { label: "Life events", value: true },
-            ].map((opt) => (
-              <button
-                key={opt.label}
-                onClick={() => setEventsOnly(opt.value)}
-                aria-pressed={eventsOnly === opt.value}
-                className={`h-7 rounded px-2.5 ${
-                  eventsOnly === opt.value ? "bg-sunken font-medium text-ink" : "text-ink-2 hover:text-ink"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+      <WeekStrip posts={posts} selected={personFilter} />
+
+      {personFilter && (
+        <div className="flex items-center justify-between border-b border-line px-4 pb-3 pt-1 text-[14px]">
+          <span className="text-ink-2">
+            Posts with <span className="font-semibold text-ink">{getPerson(personFilter).firstName}</span>
+          </span>
+          <Link
+            href="/"
+            scroll={false}
+            className="flex items-center gap-1 rounded-full bg-sunken py-1 pl-2.5 pr-2 text-[13px] font-medium"
+          >
+            Everyone
+            <CloseIcon size={14} />
+          </Link>
         </div>
+      )}
 
+      <div className="divide-y divide-line">
         {visible.map((post) => (
           <PostCard key={post.id} post={post} />
         ))}
-
-        {visible.length === 0 && (
-          <div className="border-y border-line bg-surface px-6 py-12 text-center sm:rounded-lg sm:border-x">
-            <p className="font-medium">Nothing here yet</p>
-            <p className="mt-1 text-[14px] text-ink-3">
-              {personFilter
-                ? `No posts with ${getPerson(personFilter).firstName}${eventsOnly ? " marked as life events" : ""}.`
-                : "No life events have been posted."}
-            </p>
-          </div>
-        )}
-
-        {visible.length > 0 && (
-          <p className="py-6 text-center text-[13px] text-ink-3">
-            You&apos;re all caught up. The family started journaling on November 2, 2025.
-          </p>
-        )}
       </div>
 
-      <aside className="hidden w-[300px] shrink-0 space-y-4 xl:block">
-        <FamilyRail />
-      </aside>
+      {visible.length === 0 ? (
+        <p className="px-4 py-16 text-center text-[15px] text-ink-3">
+          No posts with {personFilter && getPerson(personFilter).firstName} yet.
+        </p>
+      ) : (
+        <p className="border-t border-line px-4 pt-8 text-center text-[13px] text-ink-3">
+          That&apos;s everything. The Harlows started this journal in November 2025.
+        </p>
+      )}
     </div>
   );
 }
 
-function PersonFilter({ value }: { value?: string }) {
-  const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useDismiss(ref, open, () => setOpen(false));
-
-  const go = (id?: string) => {
-    setOpen(false);
-    router.push(id ? `/?person=${id}` : "/", { scroll: false });
-  };
+// Who's been in the journal this week, most recent first.
+function WeekStrip({ posts, selected }: { posts: Post[]; selected?: string }) {
+  const { openComposer } = useStore();
+  const latest = new Map<string, Post>();
+  for (const post of posts) {
+    if (!isRecent(post.createdAt)) continue;
+    for (const id of peopleInPost(post)) if (!latest.has(id)) latest.set(id, post);
+  }
+  const ids = [...latest.keys()].filter((id) => people.some((p) => p.id === id));
 
   return (
-    <div ref={ref} className="relative">
+    <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 py-4">
       <button
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-        className="flex h-8 items-center gap-2 rounded-md border border-line bg-surface pl-1.5 pr-2 text-[13px] hover:border-line-strong"
+        onClick={() => openComposer()}
+        className="flex h-[132px] w-[96px] shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl bg-sunken text-[13px] font-medium text-ink-2 hover:bg-hover"
       >
-        {value ? <Avatar personId={value} size={20} /> : <span className="w-1" />}
-        <span className="text-ink-3">Showing</span>
-        <span className="font-medium">{value ? fullName(getPerson(value)) : "Everyone"}</span>
-        <ChevronDownIcon size={16} className="text-ink-3" />
+        <PlusIcon size={26} />
+        Share
       </button>
-      {open && (
-        <ul className="absolute left-0 top-full z-30 mt-1 max-h-80 w-64 overflow-y-auto rounded-lg border border-line bg-surface py-1 shadow-pop">
-          <li>
-            <button
-              onClick={() => go()}
-              className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[14px] hover:bg-hover"
-            >
-              <span className="flex-1">Everyone</span>
-              {!value && <CheckIcon size={16} className="text-accent" />}
-            </button>
-          </li>
-          <li className="my-1 border-t border-line" />
-          {people.map((p) => (
-            <li key={p.id}>
-              <button
-                onClick={() => go(p.id)}
-                className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[14px] hover:bg-hover"
-              >
-                <Avatar personId={p.id} size={24} />
-                <span className="flex-1">
-                  {p.id === CURRENT_USER_ID ? "You" : fullName(p)}
-                </span>
-                {value === p.id && <CheckIcon size={16} className="text-accent" />}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {ids.map((id) => {
+        const person = getPerson(id);
+        const src = photoUrl(person, 96, 132);
+        const active = selected === id;
+        return (
+          <Link
+            key={id}
+            href={active ? "/" : `/?person=${id}`}
+            scroll={false}
+            aria-pressed={active}
+            className={`relative h-[132px] w-[96px] shrink-0 overflow-hidden rounded-xl bg-sunken ${
+              active ? "ring-2 ring-ink ring-offset-2 ring-offset-canvas" : ""
+            } ${selected && !active ? "opacity-50" : ""}`}
+          >
+            {src && (
+              <Image src={src} alt="" width={96} height={132} className="h-full w-full object-cover" />
+            )}
+            <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 pb-1.5 pt-6 text-[13px] font-semibold text-white">
+              {person.firstName}
+            </span>
+          </Link>
+        );
+      })}
     </div>
-  );
-}
-
-function FamilyRail() {
-  const members = people.filter((p) => !p.isPlaceholder);
-  const waiting = people.filter((p) => p.isPlaceholder && p.inviteSentAt);
-  const newest = [...people]
-    .filter((p) => p.birthDate)
-    .sort((a, b) => b.birthDate!.localeCompare(a.birthDate!))[0];
-
-  return (
-    <>
-      <section className="rounded-lg border border-line bg-surface">
-        <div className="px-4 pb-3 pt-4">
-          <h2 className="font-serif text-[19px] leading-tight">The Harlows</h2>
-          <p className="mt-1 text-[13px] text-ink-3">
-            Four generations, from Walter &amp; June to {newest.firstName}.
-          </p>
-        </div>
-        <dl className="grid grid-cols-3 border-t border-line text-center">
-          {[
-            [people.length, "People"],
-            [4, "Generations"],
-            [members.length, "Joined"],
-          ].map(([n, label]) => (
-            <div key={label} className="border-r border-line py-3 last:border-r-0">
-              <dd className="text-[17px] font-semibold tabular-nums">{n}</dd>
-              <dt className="text-[12px] text-ink-3">{label}</dt>
-            </div>
-          ))}
-        </dl>
-        <Link
-          href="/tree"
-          className="flex items-center justify-between border-t border-line px-4 py-2.5 text-[14px] font-medium text-accent-ink hover:bg-hover"
-        >
-          Open family tree
-          <ChevronRightIcon size={16} />
-        </Link>
-      </section>
-
-      {waiting.length > 0 && (
-        <section className="rounded-lg border border-line bg-surface p-4">
-          <h2 className="text-[13px] font-semibold text-ink-2">Invited, not joined yet</h2>
-          <ul className="mt-3 space-y-3">
-            {waiting.map((p) => (
-              <li key={p.id} className="flex items-center gap-3">
-                <Avatar personId={p.id} size={36} />
-                <div className="min-w-0 flex-1 leading-tight">
-                  <Link href={`/people/${p.id}`} className="text-[14px] font-medium hover:underline">
-                    {fullName(p)}
-                  </Link>
-                  <div className="text-[12px] text-ink-3">
-                    {kinship(CURRENT_USER_ID, p.id)} · sent {longDate(p.inviteSentAt!).replace(/, \d{4}$/, "")}
-                  </div>
-                </div>
-                <button className="h-7 rounded-md border border-line px-2.5 text-[13px] hover:bg-hover">
-                  Resend
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <section className="rounded-lg border border-line bg-surface p-4">
-        <h2 className="text-[13px] font-semibold text-ink-2">Newest in the tree</h2>
-        <Link href={`/people/${newest.id}`} className="mt-3 flex items-center gap-3">
-          <Avatar personId={newest.id} size={36} />
-          <div className="leading-tight">
-            <div className="text-[14px] font-medium hover:underline">{fullName(newest)}</div>
-            <div className="text-[12px] text-ink-3">
-              Born {longDate(newest.birthDate!)} · added by{" "}
-              {newest.addedBy ? getPerson(newest.addedBy).firstName : "family"}
-            </div>
-          </div>
-        </Link>
-      </section>
-
-      <p className="px-1 text-[12px] leading-relaxed text-ink-3">
-        Only people in the Harlow family can see what&apos;s shared here.
-      </p>
-    </>
   );
 }

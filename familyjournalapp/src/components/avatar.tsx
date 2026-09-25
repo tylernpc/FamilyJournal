@@ -52,7 +52,7 @@ export function Avatar({
       )}
       {activity && (
         <span
-          className="absolute rounded-full border-2 border-surface bg-accent"
+          className="absolute rounded-full border-2 border-surface bg-signal"
           style={{
             width: Math.max(9, size * 0.26),
             height: Math.max(9, size * 0.26),

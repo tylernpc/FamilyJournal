@@ -241,8 +241,10 @@ function reactions(spec: string): Reaction[] {
     });
 }
 
-const photo = (seed: string, width = 1200, height = 900) => ({
-  src: `https://picsum.photos/seed/${seed}/${width}/${height}`,
+// Unsplash stand-ins for uploaded photos, cropped to the ratio the post was shot in.
+const photo = (id: string, alt: string, width = 1200, height = 1500) => ({
+  src: `https://images.unsplash.com/${id}?w=${width}&h=${height}&fit=crop&q=75`,
+  alt,
   width,
   height,
 });
@@ -258,6 +260,9 @@ export const initialPosts: Post[] = [
       date: "2026-09-21",
     },
     text: "First week done. They gave me an office with an actual window, which I'm told is unheard of for a first-year. Thank you all for putting up with two years of me talking about the bar exam.",
+    photos: [
+      photo("photo-1534062310633-a22d6b04c01c", "The office building downtown", 1200, 900),
+    ],
     tagged: ["diego"],
     reactions: reactions(
       "carol:love luis:love ana:like emma:like nate:wow robert:like diane:love sam:like",
@@ -288,6 +293,10 @@ export const initialPosts: Post[] = [
     authorId: "emma",
     createdAt: "2026-09-21T16:40:00-06:00",
     text: "Pie lesson #1 at Grandma June's. Iris was in charge of the fork marks and took the job very seriously. Grandma says the secret is cold butter and not overthinking it. I have been overthinking it for twenty years.",
+    photos: [
+      photo("photo-1577048982761-cfe6df488c27", "Iris and Grandma June rolling out dough"),
+      photo("photo-1603779702200-95b2785f2083", "Crimping the edge of the crust"),
+    ],
     tagged: ["june", "iris"],
     reactions: reactions(
       "carol:love diane:love robert:love ana:love sam:like nate:haha luis:like",
@@ -312,6 +321,10 @@ export const initialPosts: Post[] = [
     authorId: "robert",
     createdAt: "2026-09-18T11:02:00-06:00",
     text: "Cleaning out the garage and found Dad's logbook from the Midway, 1952. His handwriting hasn't changed a bit from the notes he used to leave on the fridge. Scanning every page this weekend so everyone can have a copy.",
+    photos: [
+      photo("photo-1595014361663-4c3e702f9c44", "Dad's logbook from the Midway, 1952"),
+      photo("photo-1654124803041-79f3cc14a9db", "A page from the logbook"),
+    ],
     tagged: ["walter"],
     reactions: reactions("carol:love emma:love nate:wow diego:like ana:love"),
     comments: [
@@ -339,6 +352,9 @@ export const initialPosts: Post[] = [
       date: "2026-09-14",
     },
     text: "Thirty-five years ago today Mom and Dad got married in the backyard on Alder Street with a borrowed tent and a rainstorm nobody forecast. Happy anniversary to the two people who taught us what showing up looks like.",
+    photos: [
+      photo("photo-1668688442138-d4906c663d93", "String lights over the backyard on Alder Street", 1200, 900),
+    ],
     tagged: ["carol", "luis"],
     reactions: reactions(
       "carol:love luis:love diego:love emma:love robert:love diane:love nate:like sam:like",
@@ -357,7 +373,7 @@ export const initialPosts: Post[] = [
     authorId: "nate",
     createdAt: "2026-09-10T19:48:00-06:00",
     text: "Officially moved. The apartment has zero furniture and one very good view of the Flatirons. Guest air mattress is available for anyone who wants to visit (please visit).",
-    photos: [{ ...photo("harlow-logbook", 1200, 800), alt: "Morning fog over the foothills from Nate's balcony" }],
+    photos: [photo("photo-1705215873044-308705fb4653", "The Flatirons from Nate's balcony", 1200, 900)],
     tagged: [],
     reactions: reactions("diane:love robert:like emma:haha ana:like"),
     comments: [
@@ -385,6 +401,9 @@ export const initialPosts: Post[] = [
       date: "2026-08-30",
     },
     text: "Theo arrived Saturday morning, 7 lb 4 oz, with a full head of hair from absolutely nobody's side of the family. Emma and Theo are both doing great. Iris has asked twice if we can return him.",
+    photos: [
+      photo("photo-1470116945706-e6bf5d5a53ca", "Theo holding onto a finger"),
+    ],
     tagged: ["theo", "emma", "iris"],
     reactions: reactions(
       "emma:love robert:love diane:love carol:love luis:love ana:love diego:love nate:love",
@@ -435,6 +454,9 @@ export const initialPosts: Post[] = [
       date: "2026-05-16",
     },
     text: "Two years of clinicals, one thesis and a lot of late-night coffee. Our Ana is a master. Congratulations, mija.",
+    photos: [
+      photo("photo-1523580846011-d3a5bc25702b", "Ana at commencement"),
+    ],
     tagged: ["ana", "carol"],
     reactions: reactions("carol:love diego:love emma:love diane:like robert:like"),
     comments: [],

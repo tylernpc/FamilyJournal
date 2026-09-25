@@ -46,7 +46,7 @@ export function PostSnippet({
           </span>
         </div>
         {meta && (
-          <div className="mt-1.5 text-[12px] font-medium" style={{ color: meta.color }}>
+          <div className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">
             {meta.label}
           </div>
         )}
@@ -58,10 +58,11 @@ export function PostSnippet({
       {thumb && (
         <Image
           src={thumb.src}
+          unoptimized={thumb.src.startsWith("blob:")}
           alt=""
           width={112}
           height={112}
-          className="mt-0.5 h-14 w-14 shrink-0 rounded object-cover"
+          className="mt-0.5 h-14 w-14 shrink-0 rounded-lg object-cover"
         />
       )}
     </button>

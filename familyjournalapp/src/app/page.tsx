@@ -7,9 +7,8 @@ export default async function Home({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const person = typeof params.person === "string" && findPerson(params.person) ? params.person : undefined;
-  const tags =
-    typeof params.with === "string" ? params.with.split(",").filter((id) => findPerson(id)) : [];
+  const person =
+    typeof params.person === "string" && findPerson(params.person) ? params.person : undefined;
 
-  return <Feed personFilter={person} initialTags={tags} />;
+  return <Feed personFilter={person} />;
 }

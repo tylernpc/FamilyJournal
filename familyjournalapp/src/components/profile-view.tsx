@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { CURRENT_USER_ID, relationships } from "@/lib/data";
@@ -20,9 +21,11 @@ import {
 import { useStore } from "@/lib/store";
 import type { LifeEventType, Person, Post } from "@/lib/types";
 import { Avatar } from "./avatar";
-import { CandleIcon, LinkIcon, MailIcon, TreeIcon } from "./icons";
-import { LIFE_EVENTS, LifeEventGlyph } from "./life-event";
+import { CakeIcon, MailIcon, PeopleIcon, PinIcon } from "./icons";
+import { LIFE_EVENTS } from "./life-event";
+import { PortraitCard } from "./portrait-card";
 import { PostCard } from "./post-card";
+import { Sheet } from "./sheet";
 
 type TimelineEntry = {
   date: string;
@@ -92,195 +95,241 @@ function timelineFor(person: Person, posts: Post[]): TimelineEntry[] {
   return entries.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+type Tab = "moments" | "timeline" | "family";
+
 export function ProfileView({ id }: { id: string }) {
-  const { posts } = useStore();
+  const { posts, openComposer } = useStore();
   const person = getPerson(id);
   const isMe = id === CURRENT_USER_ID;
-  const theirs = posts.filter((p) => postInvolves(p, id));
-  const timeline = timelineFor(person, posts);
-  const [tab, setTab] = useState<"timeline" | "posts">("timeline");
   const deceased = person.lifeStatus === "deceased";
+  const theirs = posts.filter((p) => postInvolves(p, id));
+  const [tab, setTab] = useState<Tab>("moments");
+  const [openPost, setOpenPost] = useState<string | null>(null);
+  const child = (age(person) ?? 99) < 13;
+  const invitable = person.isPlaceholder && !deceased && !child;
+  const post = posts.find((p) => p.id === openPost);
 
   return (
-    <div className="mx-auto w-full max-w-[960px] py-6 sm:px-6 sm:py-10">
-      <header className="px-4 sm:px-0">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
-          <Avatar personId={id} size={96} />
-          <div className="min-w-0 flex-1">
+    <div className="mx-auto w-full max-w-[680px] pb-12">
+      <header className="px-4 pt-6 lg:pt-10">
+        <div className="flex items-start gap-4">
+          <div className="min-w-0 flex-1 pt-1">
             {deceased && (
-              <div className="mb-1 flex items-center gap-1.5 text-[13px] text-ink-3">
-                <CandleIcon size={15} />
+              <div className="mb-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-3">
                 In memory
               </div>
             )}
-            <h1 className="font-serif text-[34px] leading-[1.1] tracking-[-0.01em]">
+            <h1 className="display text-[40px] [text-wrap:balance] sm:text-[48px]">
               {fullName(person)}
             </h1>
-            <p className="mt-1.5 text-[14px] text-ink-2">
-              {[
-                isMe ? "You" : kinship(CURRENT_USER_ID, id),
-                person.maidenName ? `née ${person.maidenName}` : null,
-                deceased ? lifespan(person) : person.birthDate ? `${age(person)} years old` : null,
-                person.location,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Link
-              href={`/tree?person=${id}`}
-              className="flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-3 text-[14px] hover:bg-hover"
-            >
-              <TreeIcon size={16} className="text-ink-3" />
-              In the tree
-            </Link>
-            {!isMe && (
-              <Link
-                href={`/?with=${id}`}
-                className="flex h-9 items-center rounded-md bg-accent px-3.5 text-[14px] font-medium text-white hover:bg-accent-hover dark:text-[#10180f]"
-              >
-                {deceased ? "Share a memory" : `Post with ${person.firstName}`}
-              </Link>
+            {person.maidenName && (
+              <p className="mt-2 text-[15px] text-ink-3">née {person.maidenName}</p>
             )}
           </div>
+          <Avatar personId={id} size={88} />
         </div>
-        {person.bio && (
-          <p className="mt-5 max-w-[600px] text-[15px] leading-relaxed text-ink">{person.bio}</p>
-        )}
-        {person.isPlaceholder && <PlaceholderNotice person={person} />}
+
+        <ul className="mt-5 space-y-2 text-[15px]">
+          <Meta icon={PeopleIcon}>
+            {isMe ? "You · family admin" : `Your ${kinship(CURRENT_USER_ID, id).toLowerCase()}`}
+          </Meta>
+          {person.birthDate && (
+            <Meta icon={CakeIcon}>
+              {deceased
+                ? `${lifespan(person)} · lived to ${age(person)}`
+                : `Born ${longDate(person.birthDate)}${child ? "" : ` · ${age(person)}`}`}
+            </Meta>
+          )}
+          {person.location && <Meta icon={PinIcon}>{person.location}</Meta>}
+          {person.isPlaceholder && (
+            <Meta icon={MailIcon}>
+              {deceased
+                ? `Kept by the family · added by ${getPerson(person.addedBy ?? CURRENT_USER_ID).firstName}`
+                : child
+                  ? `Looked after by ${getPerson(person.addedBy ?? CURRENT_USER_ID).firstName}`
+                  : person.inviteSentAt
+                    ? `Invited ${longDate(person.inviteSentAt).replace(/, \d{4}$/, "")} · hasn't joined yet`
+                    : "Not on Family Journal yet"}
+            </Meta>
+          )}
+        </ul>
+
+        {person.bio && <p className="mt-4 text-[15px] leading-relaxed">{person.bio}</p>}
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          {isMe ? (
+            <Pill onClick={() => openComposer()} primary>
+              New post
+            </Pill>
+          ) : (
+            <Pill onClick={() => openComposer([id])} primary>
+              {deceased ? "Share a memory" : `Post with ${person.firstName}`}
+            </Pill>
+          )}
+          <Pill href={`/tree?person=${id}`}>View in tree</Pill>
+          {invitable && <Pill onClick={() => {}}>{person.inviteSentAt ? "Resend invite" : "Invite"}</Pill>}
+        </div>
       </header>
 
-      <div className="mt-8 flex flex-col gap-8 lg:flex-row">
-        <div className="min-w-0 flex-1">
-          <div className="flex gap-5 border-b border-line px-4 sm:px-0" role="tablist">
-            {(
-              [
-                ["timeline", "Timeline"],
-                ["posts", `Posts · ${theirs.length}`],
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                role="tab"
-                aria-selected={tab === key}
-                onClick={() => setTab(key)}
-                className={`-mb-px border-b-2 pb-2.5 text-[14px] ${
-                  tab === key
-                    ? "border-ink font-medium text-ink"
-                    : "border-transparent text-ink-3 hover:text-ink-2"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {tab === "timeline" ? (
-            <Timeline entries={timeline} onOpenPosts={() => setTab("posts")} />
-          ) : (
-            <div className="mt-4 space-y-3">
-              {theirs.map((post) => (
-                <PostCard key={post.id} post={post} />
-              ))}
-              {theirs.length === 0 && (
-                <p className="px-4 py-10 text-center text-[14px] text-ink-3">
-                  No posts with {person.firstName} yet.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        <aside className="w-full shrink-0 space-y-4 px-4 sm:px-0 lg:w-[300px]">
-          <Relatives id={id} />
-          <ShowsUpWith id={id} posts={posts} />
-        </aside>
+      <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 mt-8 flex border-b border-line bg-canvas px-4 lg:top-16" role="tablist">
+        {(
+          [
+            ["moments", `Moments ${theirs.length}`],
+            ["timeline", "Timeline"],
+            ["family", "Family"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => setTab(key)}
+            className={`-mb-px mr-6 border-b-2 py-3 text-[15px] ${
+              tab === key ? "border-ink font-semibold text-ink" : "border-transparent text-ink-3"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
-    </div>
-  );
-}
 
-function PlaceholderNotice({ person }: { person: Person }) {
-  const addedBy = getPerson(person.addedBy ?? CURRENT_USER_ID);
-  const child = (age(person) ?? 99) < 13;
-  let body: React.ReactNode;
+      {tab === "moments" && <Moments posts={theirs} onOpen={setOpenPost} name={person.firstName} />}
+      {tab === "timeline" && (
+        <Timeline entries={timelineFor(person, posts)} onOpen={setOpenPost} />
+      )}
+      {tab === "family" && <Family id={id} posts={posts} />}
 
-  if (person.lifeStatus === "deceased") {
-    body = (
-      <>
-        {person.firstName}&apos;s page is kept by the family. {addedBy.firstName} added it; anyone
-        can tag {person.firstName} in a post to add to the story.
-      </>
-    );
-  } else if (child) {
-    body = (
-      <>
-        {person.firstName}&apos;s profile is looked after by {addedBy.firstName} until{" "}
-        {person.sex === "f" ? "she's" : person.sex === "m" ? "he's" : "they're"} old enough to
-        claim it.
-      </>
-    );
-  } else {
-    body = (
-      <>
-        {person.firstName} isn&apos;t on Family Journal yet.{" "}
-        {person.inviteSentAt
-          ? `${addedBy.firstName} sent an invite on ${longDate(person.inviteSentAt)}.`
-          : "Invite them to claim this profile."}{" "}
-        Posts they&apos;re tagged in will be waiting when they join.
-      </>
-    );
-  }
-
-  const invitable = person.lifeStatus === "living" && !child;
-
-  return (
-    <div className="mt-5 flex max-w-[600px] flex-col gap-3 rounded-lg border border-dashed border-line-strong bg-surface px-4 py-3 sm:flex-row sm:items-center">
-      <p className="flex-1 text-[14px] leading-relaxed text-ink-2">{body}</p>
-      {invitable && (
-        <div className="flex shrink-0 gap-2">
-          <button className="flex h-8 items-center gap-1.5 rounded-md border border-line px-2.5 text-[13px] hover:bg-hover">
-            <LinkIcon size={15} className="text-ink-3" />
-            Copy link
-          </button>
-          <button className="flex h-8 items-center gap-1.5 rounded-md border border-line px-2.5 text-[13px] hover:bg-hover">
-            <MailIcon size={15} className="text-ink-3" />
-            {person.inviteSentAt ? "Resend" : "Invite"}
-          </button>
-        </div>
+      {post && (
+        <Sheet label="Post" onClose={() => setOpenPost(null)} wide>
+          <div className="overflow-y-auto">
+            <PostCard post={post} />
+          </div>
+        </Sheet>
       )}
     </div>
   );
 }
 
-function Timeline({ entries, onOpenPosts }: { entries: TimelineEntry[]; onOpenPosts: () => void }) {
+function Meta({ icon: Icon, children }: { icon: typeof PinIcon; children: React.ReactNode }) {
   return (
-    <ol className="relative mt-6 px-4 sm:px-0">
-      <span className="absolute bottom-3 left-[calc(1rem+83px)] top-3 w-px bg-line sm:left-[83px]" aria-hidden="true" />
+    <li className="flex items-center gap-2.5 text-ink-2">
+      <Icon size={18} className="shrink-0" />
+      <span>{children}</span>
+    </li>
+  );
+}
+
+function Pill({
+  children,
+  href,
+  onClick,
+  primary = false,
+}: {
+  children: React.ReactNode;
+  href?: string;
+  onClick?: () => void;
+  primary?: boolean;
+}) {
+  const cls = `flex h-10 items-center rounded-full px-5 text-[14px] font-semibold ${
+    primary ? "bg-ink text-canvas hover:bg-accent-hover" : "border border-ink hover:bg-hover"
+  }`;
+  return href ? (
+    <Link href={href} className={cls}>
+      {children}
+    </Link>
+  ) : (
+    <button onClick={onClick} className={cls}>
+      {children}
+    </button>
+  );
+}
+
+// Grid of everything they're in. Text-only posts become typographic tiles.
+function Moments({
+  posts,
+  onOpen,
+  name,
+}: {
+  posts: Post[];
+  onOpen: (id: string) => void;
+  name: string;
+}) {
+  if (!posts.length)
+    return <p className="px-4 py-16 text-center text-[15px] text-ink-3">Nothing with {name} yet.</p>;
+
+  return (
+    <div className="grid grid-cols-3 gap-0.5 pt-0.5">
+      {posts.map((post) => {
+        const photo = post.photos?.[0];
+        return (
+          <button
+            key={post.id}
+            onClick={() => onOpen(post.id)}
+            className="relative aspect-square overflow-hidden bg-sunken text-left"
+          >
+            {photo ? (
+              <Image
+                src={photo.src.startsWith("blob:") ? photo.src : `${photo.src.split("?")[0]}?w=480&h=480&fit=crop&q=70`}
+                unoptimized={photo.src.startsWith("blob:")}
+                alt={photo.alt}
+                width={240}
+                height={240}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="flex h-full flex-col justify-end p-3">
+                {post.lifeEvent && (
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-3">
+                    {LIFE_EVENTS[post.lifeEvent.type].label}
+                  </span>
+                )}
+                <span className="display line-clamp-4 text-[17px] sm:text-[20px]">
+                  {post.lifeEvent?.title ?? post.text}
+                </span>
+              </span>
+            )}
+            {(post.photos?.length ?? 0) > 1 && (
+              <span className="absolute right-2 top-2 rounded-full bg-black/55 px-1.5 text-[11px] font-medium text-white">
+                {post.photos!.length}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function Timeline({
+  entries,
+  onOpen,
+}: {
+  entries: TimelineEntry[];
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <ol className="px-4 pt-4">
       {entries.map((e, i) => {
         const year = e.date.slice(0, 4);
         const showYear = i === 0 || entries[i - 1].date.slice(0, 4) !== year;
-        const meta = LIFE_EVENTS[e.type];
         return (
-          <li key={i} className="relative flex gap-4 pb-6 last:pb-0">
-            <span className="w-12 shrink-0 pt-1.5 text-right text-[13px] font-medium tabular-nums text-ink-2">
+          <li key={i} className={`flex gap-5 ${showYear && i > 0 ? "mt-2 border-t border-line pt-4" : ""} pb-4`}>
+            <span className="display w-16 shrink-0 pt-0.5 text-[24px] tabular-nums">
               {showYear ? year : ""}
             </span>
-            <span className="relative z-10 ml-1 shrink-0 rounded-md ring-4 ring-canvas">
-              <LifeEventGlyph type={e.type} size={30} />
-            </span>
-            <div className="min-w-0 pt-0.5">
-              <div className="text-[15px] font-medium leading-snug">{e.title}</div>
-              <div className="mt-0.5 text-[13px] text-ink-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">
+                {LIFE_EVENTS[e.type].label}
+              </div>
+              <div className="mt-0.5 text-[16px] font-semibold leading-snug">{e.title}</div>
+              <div className="mt-0.5 text-[14px] text-ink-3">
                 {longDate(e.date)}
                 {e.detail && <> · {e.detail}</>}
-                {!e.detail && e.postId && <> · {meta.label}</>}
               </div>
               {e.postId && (
                 <button
-                  onClick={onOpenPosts}
-                  className="mt-1 text-[13px] font-medium text-accent-ink hover:underline"
+                  onClick={() => onOpen(e.postId!)}
+                  className="mt-1.5 text-[14px] font-semibold underline decoration-line-strong underline-offset-4 hover:decoration-ink"
                 >
                   See the post
                 </button>
@@ -293,71 +342,54 @@ function Timeline({ entries, onOpenPosts }: { entries: TimelineEntry[]; onOpenPo
   );
 }
 
-function Relatives({ id }: { id: string }) {
+function Family({ id, posts }: { id: string; posts: Post[] }) {
+  const spouse = spouseOf(id);
   const groups: [string, string[]][] = [
     ["Parents", parentsOf(id)],
-    ["Spouse", spouseOf(id) ? [spouseOf(id)!] : []],
+    ["Partner", spouse ? [spouse] : []],
     ["Siblings", siblingsOf(id)],
     ["Children", childrenOf(id)],
   ];
-  const visible = groups.filter(([, ids]) => ids.length);
+  const together = companions(posts, id).slice(0, 6);
 
   return (
-    <section className="rounded-lg border border-line bg-surface">
-      <h2 className="border-b border-line px-4 py-3 text-[13px] font-semibold text-ink-2">
-        Immediate family
-      </h2>
-      <div className="divide-y divide-line">
-        {visible.map(([label, ids]) => (
-          <div key={label} className="px-4 py-3">
-            <div className="text-[12px] text-ink-3">{label}</div>
-            <ul className="mt-2 space-y-2">
+    <div className="space-y-8 px-4 pt-5">
+      {groups
+        .filter(([, ids]) => ids.length)
+        .map(([label, ids]) => (
+          <section key={label}>
+            <h2 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-3">{label}</h2>
+            <div className="mt-3 grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4">
               {ids.map((rid) => (
-                <li key={rid}>
-                  <Link href={`/people/${rid}`} className="group flex items-center gap-2.5">
-                    <Avatar personId={rid} size={28} />
-                    <span className="text-[14px] group-hover:underline">
-                      {fullName(getPerson(rid))}
-                    </span>
-                    {getPerson(rid).lifeStatus === "deceased" && (
-                      <span className="text-[12px] text-ink-3">{lifespan(getPerson(rid))}</span>
-                    )}
-                  </Link>
-                </li>
+                <PortraitCard
+                  key={rid}
+                  personId={rid}
+                  width={150}
+                  caption={getPerson(rid).lifeStatus === "deceased" ? lifespan(getPerson(rid)) : kinship(CURRENT_USER_ID, rid)}
+                />
               ))}
-            </ul>
-          </div>
+            </div>
+          </section>
         ))}
-        {visible.length === 0 && (
-          <p className="px-4 py-3 text-[13px] text-ink-3">No relationships added yet.</p>
-        )}
-      </div>
-    </section>
-  );
-}
 
-function ShowsUpWith({ id, posts }: { id: string; posts: Post[] }) {
-  const list = companions(posts, id).slice(0, 5);
-  if (!list.length) return null;
-  const person = getPerson(id);
-  return (
-    <section className="rounded-lg border border-line bg-surface p-4">
-      <h2 className="text-[13px] font-semibold text-ink-2">
-        Often in posts with {id === CURRENT_USER_ID ? "you" : person.firstName}
-      </h2>
-      <ul className="mt-3 space-y-2.5">
-        {list.map(({ id: other, count }) => (
-          <li key={other}>
-            <Link href={`/people/${other}`} className="group flex items-center gap-2.5">
-              <Avatar personId={other} size={28} />
-              <span className="flex-1 text-[14px] group-hover:underline">
-                {fullName(getPerson(other))}
-              </span>
-              <span className="text-[12px] tabular-nums text-ink-3">{count}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
+      {together.length > 0 && (
+        <section>
+          <h2 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-3">
+            Most often in posts with
+          </h2>
+          <div className="no-scrollbar -mx-4 mt-3 flex gap-4 overflow-x-auto px-4">
+            {together.map(({ id: other, count }) => (
+              <Link key={other} href={`/people/${other}`} className="w-16 shrink-0 text-center">
+                <Avatar personId={other} size={64} />
+                <span className="mt-1.5 block truncate text-[13px] font-medium">
+                  {getPerson(other).firstName}
+                </span>
+                <span className="block text-[12px] text-ink-3">{count}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
   );
 }

@@ -1,88 +1,66 @@
 @import "tailwindcss";
 
+/*
+  Photos carry the color. The interface stays black and white, with one
+  signal red for "new" and for the threads that connect people in the tree.
+*/
 :root {
-  --canvas: #f6f4ef;
+  --canvas: #ffffff;
   --surface: #ffffff;
-  --sunken: #efece5;
-  --hover: #f3f0ea;
-  --line: #e5e0d6;
-  --line-strong: #d2cbbe;
-  --ink: #1f1d1a;
-  --ink-2: #57534b;
-  --ink-3: #8a857b;
-  --accent: #3b6a4f;
-  --accent-hover: #325b43;
-  --accent-soft: #e5ede6;
-  --accent-ink: #2c5039;
-  --danger: #a4412f;
+  --sunken: #f3f3f1;
+  --hover: #f6f6f5;
+  --line: #ececea;
+  --line-strong: #d6d6d3;
+  --ink: #111111;
+  --ink-2: #5c5c5a;
+  --ink-3: #93938f;
+  --accent: #111111;
+  --accent-hover: #2b2b2b;
+  --accent-soft: #f3f3f1;
+  --accent-ink: #111111;
+  --signal: #e5484d;
+  --danger: #d93d3d;
 
-  /* Life event categories: quiet tints, never louder than the content. */
-  --ev-birth: #3f6690;
-  --ev-birth-bg: #eaf0f6;
-  --ev-marriage: #8a4b3e;
-  --ev-marriage-bg: #f5ebe7;
-  --ev-graduation: #5a6a2c;
-  --ev-graduation-bg: #eef1e3;
-  --ev-job: #7a5a22;
-  --ev-job-bg: #f4eee1;
-  --ev-memorial: #5b5750;
-  --ev-memorial-bg: #efeeeb;
-  --ev-anniversary: #7e4863;
-  --ev-anniversary-bg: #f4ebef;
+  --tree-line: #cfcfcb;
+  --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.06), 0 12px 32px rgb(0 0 0 / 0.12);
 
-  --tree-line: #c9c1b3;
-
-  /* Avatar tones */
-  --tone-1: #e2d3bd;
-  --tone-2: #cfdccb;
-  --tone-3: #d3dbe4;
-  --tone-4: #e5d0cb;
-  --tone-5: #ddd6bf;
-  --tone-6: #d9d0de;
-  --tone-ink: #3a352d;
-  --shadow-pop: 0 1px 2px rgb(31 29 26 / 0.06), 0 8px 24px rgb(31 29 26 / 0.1);
+  /* Initials fallback for people without a photo. */
+  --tone-1: #ecebe7;
+  --tone-2: #ecebe7;
+  --tone-3: #ecebe7;
+  --tone-4: #ecebe7;
+  --tone-5: #ecebe7;
+  --tone-6: #ecebe7;
+  --tone-ink: #5c5c5a;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --canvas: #151412;
-    --surface: #1c1b19;
-    --sunken: #121110;
-    --hover: #24221f;
-    --line: #2d2b27;
-    --line-strong: #3d3a35;
-    --ink: #ece8e1;
-    --ink-2: #b1aba0;
-    --ink-3: #7f7a71;
-    --accent: #7fae8f;
-    --accent-hover: #93bea2;
-    --accent-soft: #22302a;
-    --accent-ink: #a6cdb2;
-    --danger: #e08b78;
+    --canvas: #0c0c0c;
+    --surface: #0c0c0c;
+    --sunken: #1b1b1b;
+    --hover: #161616;
+    --line: #232323;
+    --line-strong: #363636;
+    --ink: #f2f2f0;
+    --ink-2: #a8a8a4;
+    --ink-3: #74746f;
+    --accent: #f2f2f0;
+    --accent-hover: #d9d9d6;
+    --accent-soft: #1b1b1b;
+    --accent-ink: #f2f2f0;
+    --signal: #ff6369;
 
-    --ev-birth: #93b4d6;
-    --ev-birth-bg: #1e2630;
-    --ev-marriage: #d9a194;
-    --ev-marriage-bg: #2c211e;
-    --ev-graduation: #b5c283;
-    --ev-graduation-bg: #242819;
-    --ev-job: #d4b67e;
-    --ev-job-bg: #2b2519;
-    --ev-memorial: #b1aba0;
-    --ev-memorial-bg: #22211f;
-    --ev-anniversary: #d6a3bb;
-    --ev-anniversary-bg: #2c1f25;
+    --tree-line: #3a3a38;
+    --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.5), 0 12px 32px rgb(0 0 0 / 0.6);
 
-    --tree-line: #45413a;
-
-    --tone-1: #4a3f31;
-    --tone-2: #34433a;
-    --tone-3: #333d49;
-    --tone-4: #4a3632;
-    --tone-5: #444030;
-    --tone-6: #3f3746;
-    --tone-ink: #e6e0d6;
-    --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.45);
+    --tone-1: #222;
+    --tone-2: #222;
+    --tone-3: #222;
+    --tone-4: #222;
+    --tone-5: #222;
+    --tone-6: #222;
+    --tone-ink: #a8a8a4;
   }
 }
 
@@ -100,44 +78,63 @@
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
   --color-accent-ink: var(--accent-ink);
+  --color-signal: var(--signal);
   --color-danger: var(--danger);
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
-  --font-serif: var(--font-newsreader), Georgia, serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), "Times New Roman", serif;
   --shadow-pop: var(--shadow-pop);
 }
 
-html {
-  color-scheme: light dark;
-  -webkit-text-size-adjust: 100%;
-  -webkit-tap-highlight-color: transparent;
+/* Base element styles sit in the base layer so utilities like outline-none can override them. */
+@layer base {
+  html {
+    color-scheme: light dark;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--ink);
+    color: var(--canvas);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: default;
+  }
 }
 
-body {
-  background: var(--canvas);
-  color: var(--ink);
-  font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+/* Heavy, tight display serif for page titles and names. */
+.display {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1;
 }
 
-::selection {
-  background: var(--accent-soft);
-  color: var(--ink);
+.no-scrollbar {
+  scrollbar-width: none;
 }
-
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-button {
-  cursor: pointer;
-}
-
-button:disabled {
-  cursor: default;
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* iOS Safari zooms the page when focusing a field under 16px. */

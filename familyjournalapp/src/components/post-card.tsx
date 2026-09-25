@@ -6,50 +6,59 @@ import { useRef, useState } from "react";
 import { CURRENT_USER_ID } from "@/lib/data";
 import { fullName, getPerson, kinship, lifespan, longDate, relativeTime } from "@/lib/family";
 import { useStore } from "@/lib/store";
-import type { Post } from "@/lib/types";
+import type { Photo, Post } from "@/lib/types";
 import { Avatar } from "./avatar";
-import { LIFE_EVENTS, LifeEventGlyph } from "./life-event";
+import { CommentIcon, MoreIcon } from "./icons";
+import { LIFE_EVENTS } from "./life-event";
 import { MentionInput } from "./mention-input";
 import { MentionText } from "./mention-text";
-import { PostActions, ReactionSummary } from "./reactions";
+import { ReactButton, ReactionSummary } from "./reactions";
 
-function PersonName({ id }: { id: string }) {
+function Name({ id }: { id: string }) {
   return (
-    <Link href={`/people/${id}`} className="font-semibold text-ink hover:underline">
-      {fullName(getPerson(id))}
+    <Link href={`/people/${id}`} className="font-semibold hover:underline">
+      {id === CURRENT_USER_ID ? "You" : fullName(getPerson(id))}
     </Link>
   );
 }
 
-function TaggedLine({ post }: { post: Post }) {
+function Byline({ post }: { post: Post }) {
   const tagged = post.tagged.filter((id) => id !== post.authorId);
-  if (!tagged.length) return <PersonName id={post.authorId} />;
   const [first, ...rest] = tagged;
   return (
     <span>
-      <PersonName id={post.authorId} />
-      <span className="text-ink-2"> with </span>
-      <PersonName id={first} />
+      <Name id={post.authorId} />
+      {first && (
+        <>
+          <span className="text-ink-2"> with </span>
+          <Name id={first} />
+        </>
+      )}
       {rest.length === 1 && (
         <>
           <span className="text-ink-2"> and </span>
-          <PersonName id={rest[0]} />
+          <Name id={rest[0]} />
         </>
       )}
       {rest.length > 1 && (
         <span className="text-ink-2">
           {" "}
           and{" "}
-          <span
-            className="font-semibold text-ink"
-            title={rest.map((id) => fullName(getPerson(id))).join(", ")}
-          >
+          <span className="font-semibold text-ink" title={rest.map((id) => fullName(getPerson(id))).join(", ")}>
             {rest.length} others
           </span>
         </span>
       )}
     </span>
   );
+}
+
+function eventLine(post: Post) {
+  const event = post.lifeEvent!;
+  const subject = post.tagged[0] ? getPerson(post.tagged[0]) : undefined;
+  const when =
+    event.type === "memorial" && subject ? lifespan(subject) : longDate(event.date);
+  return `${LIFE_EVENTS[event.type].label} · ${when}`;
 }
 
 export function PostCard({ post }: { post: Post }) {
@@ -62,6 +71,7 @@ export function PostCard({ post }: { post: Post }) {
     post.authorId === CURRENT_USER_ID ? null : kinship(CURRENT_USER_ID, post.authorId);
   const hidden = showAll ? 0 : Math.max(0, post.comments.length - 2);
   const comments = post.comments.slice(hidden);
+  const photos = post.photos ?? [];
 
   const submit = () => {
     const text = draft.trim();
@@ -72,130 +82,154 @@ export function PostCard({ post }: { post: Post }) {
   };
 
   return (
-    <article className="border-y border-line bg-surface sm:rounded-lg sm:border-x">
-      <header className="flex gap-3 px-4 pt-4">
+    <article className="py-5">
+      <header className="flex items-center gap-3 px-4">
         <Link href={`/people/${post.authorId}`} className="shrink-0">
-          <Avatar personId={post.authorId} size={40} />
+          <Avatar personId={post.authorId} size={38} />
         </Link>
-        <div className="min-w-0 pt-px text-[15px] leading-snug">
-          <TaggedLine post={post} />
-          <div className="mt-0.5 text-[13px] text-ink-3">
+        <div className="min-w-0 flex-1 text-[15px] leading-snug">
+          <Byline post={post} />
+          <div className="text-[13px] text-ink-3">
             {relation && <>{relation} · </>}
             <time dateTime={post.createdAt}>{relativeTime(post.createdAt)}</time>
           </div>
         </div>
+        <button aria-label="More" className="-mr-2 flex h-9 w-9 items-center justify-center rounded-full text-ink-3 hover:bg-hover">
+          <MoreIcon size={20} />
+        </button>
       </header>
 
-      {post.lifeEvent && <LifeEventBanner post={post} />}
-
-      <p className="whitespace-pre-line px-4 pt-3 text-[15px] leading-relaxed text-ink">
-        {post.text}
-      </p>
-
-      {post.photos && post.photos.length > 0 && (
-        <div
-          className={`mt-3 grid gap-0.5 overflow-hidden ${
-            post.photos.length > 1 ? "grid-cols-2" : ""
-          }`}
-        >
-          {post.photos.map((photo) => (
-            <Image
-              key={photo.src}
-              src={photo.src}
-              alt={photo.alt}
-              width={photo.width}
-              height={photo.height}
-              sizes="(min-width: 640px) 600px, 100vw"
-              className={`w-full bg-sunken object-cover ${
-                post.photos!.length > 1 ? "aspect-square" : "max-h-[520px]"
-              }`}
-            />
-          ))}
-        </div>
+      {photos.length > 0 ? (
+        <Media post={post} photos={photos} />
+      ) : (
+        post.lifeEvent && (
+          <div className="px-4 pt-4">
+            <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-3">
+              {eventLine(post)}
+            </div>
+            <h3 className="display mt-1.5 text-[30px]">{post.lifeEvent.title}</h3>
+          </div>
+        )
       )}
 
-      <div className="flex items-center justify-between px-4 pt-3 text-[13px] text-ink-3">
-        <ReactionSummary post={post} />
-        {post.comments.length > 0 && (
-          <button onClick={() => setShowAll(true)} className="hover:text-ink-2 hover:underline">
-            {post.comments.length} comment{post.comments.length > 1 ? "s" : ""}
-          </button>
-        )}
-      </div>
+      {post.text && (
+        <p className="whitespace-pre-line px-4 pt-3 text-[15px] leading-[1.5]">
+          <MentionText text={post.text} />
+        </p>
+      )}
 
-      <div className="mx-4 mt-2 border-t border-line py-1">
-        <PostActions post={post} onComment={() => inputRef.current?.focus()} />
+      <div className="flex items-center gap-1 px-4 pt-2">
+        <ReactButton post={post} />
+        <button
+          onClick={() => inputRef.current?.focus()}
+          aria-label="Comment"
+          className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-hover"
+        >
+          <CommentIcon size={24} />
+        </button>
+        <div className="ml-auto">
+          <ReactionSummary post={post} />
+        </div>
       </div>
 
       {(comments.length > 0 || hidden > 0) && (
-        <div className="space-y-3 px-4 pb-1 pt-2">
+        <div className="space-y-1 px-4 pt-1 text-[14px] leading-snug">
           {hidden > 0 && (
-            <button
-              onClick={() => setShowAll(true)}
-              className="text-[13px] font-medium text-ink-2 hover:underline"
-            >
-              View {hidden} earlier comment{hidden > 1 ? "s" : ""}
+            <button onClick={() => setShowAll(true)} className="pb-0.5 text-ink-3 hover:text-ink-2">
+              View all {post.comments.length} comments
             </button>
           )}
           {comments.map((c) => (
-            <div key={c.id} className="flex gap-2.5">
-              <Link href={`/people/${c.authorId}`} className="shrink-0 pt-0.5">
-                <Avatar personId={c.authorId} size={30} />
+            <p key={c.id}>
+              <Link href={`/people/${c.authorId}`} className="mr-1.5 font-semibold hover:underline">
+                {fullName(getPerson(c.authorId))}
               </Link>
-              <div className="min-w-0">
-                <div className="rounded-lg bg-sunken px-3 py-2 text-[14px] leading-snug">
-                  <Link
-                    href={`/people/${c.authorId}`}
-                    className="mr-1.5 font-semibold hover:underline"
-                  >
-                    {fullName(getPerson(c.authorId))}
-                  </Link>
-                  <MentionText text={c.text} />
-                </div>
-                <div className="mt-1 pl-3 text-[12px] text-ink-3">{relativeTime(c.createdAt)}</div>
-              </div>
-            </div>
+              <MentionText text={c.text} />
+            </p>
           ))}
         </div>
       )}
 
-      <div className="flex items-start gap-2.5 px-4 pb-4 pt-3">
-        <Avatar personId={CURRENT_USER_ID} size={30} className="mt-0.5" />
-        <div className="flex min-h-[34px] flex-1 items-center rounded-lg border border-line bg-canvas px-3 py-1.5 focus-within:border-line-strong">
-          <MentionInput
-            ref={inputRef}
-            value={draft}
-            onChange={setDraft}
-            onSubmit={submit}
-            placeholder="Write a comment…"
-            aria-label="Write a comment"
-            className="text-[14px] leading-snug"
-          />
-        </div>
+      <div className="flex items-center gap-2.5 px-4 pt-3">
+        <Avatar personId={CURRENT_USER_ID} size={26} />
+        <MentionInput
+          ref={inputRef}
+          value={draft}
+          onChange={setDraft}
+          onSubmit={submit}
+          placeholder="Add a comment…"
+          aria-label="Add a comment"
+          className="py-1 text-[14px] leading-snug"
+        />
+        {draft.trim() && (
+          <button onClick={submit} className="text-[14px] font-semibold">
+            Post
+          </button>
+        )}
       </div>
     </article>
   );
 }
 
-function LifeEventBanner({ post }: { post: Post }) {
-  const event = post.lifeEvent!;
-  const meta = LIFE_EVENTS[event.type];
-  const subject = post.tagged[0] ? getPerson(post.tagged[0]) : undefined;
-  const dateLabel =
-    event.type === "memorial" && subject ? lifespan(subject) : longDate(event.date);
-
+function PostPhoto({ photo, className, sizes }: { photo: Photo; className: string; sizes: string }) {
   return (
-    <div
-      className="mx-4 mt-3 flex items-center gap-3 rounded-md px-3.5 py-3"
-      style={{ background: meta.bg }}
-    >
-      <LifeEventGlyph type={event.type} size={36} inset />
-      <div className="min-w-0">
-        <div className="text-[12px] font-medium" style={{ color: meta.color }}>
-          {meta.label} · {dateLabel}
-        </div>
-        <div className="font-serif text-[20px] leading-tight text-ink">{event.title}</div>
+    <Image
+      src={photo.src}
+      alt={photo.alt}
+      width={photo.width}
+      height={photo.height}
+      sizes={sizes}
+      unoptimized={photo.src.startsWith("blob:")}
+      draggable={false}
+      className={`bg-sunken object-cover ${className}`}
+    />
+  );
+}
+
+function EventOverlay({ post }: { post: Post }) {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 via-black/25 to-transparent px-5 pb-5 pt-20 text-white">
+      <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-white/80">
+        {eventLine(post)}
       </div>
+      <div className="display mt-1.5 text-[30px] [text-wrap:balance]">{post.lifeEvent!.title}</div>
+    </div>
+  );
+}
+
+function Media({ post, photos }: { post: Post; photos: Photo[] }) {
+  if (photos.length === 1) {
+    const [photo] = photos;
+    const tall = photo.height > photo.width;
+    return (
+      <div className="px-4 pt-3">
+        <div className="relative overflow-hidden rounded-[14px]">
+          <PostPhoto
+            photo={photo}
+            sizes="(min-width: 640px) 568px, 100vw"
+            className={`w-full ${tall ? "aspect-[4/5]" : "aspect-[4/3]"}`}
+          />
+          {post.lifeEvent && <EventOverlay post={post} />}
+        </div>
+      </div>
+    );
+  }
+
+  // Several photos: a swipeable row that shows the next one peeking in.
+  return (
+    <div className="no-scrollbar mt-3 flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-px-4 px-4">
+      {photos.map((photo, i) => (
+        <div
+          key={photo.src}
+          className="relative w-[82%] shrink-0 snap-start overflow-hidden rounded-[14px] sm:w-[76%]"
+        >
+          <PostPhoto photo={photo} sizes="(min-width: 640px) 440px, 82vw" className="aspect-[4/5] w-full" />
+          {i === 0 && post.lifeEvent && <EventOverlay post={post} />}
+          <span className="absolute right-3 top-3 rounded-full bg-black/55 px-2 py-0.5 text-[12px] font-medium text-white">
+            {i + 1}/{photos.length}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

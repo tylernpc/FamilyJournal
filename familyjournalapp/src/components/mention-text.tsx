@@ -21,7 +21,7 @@ export function MentionText({ text }: { text: string }) {
       <Link
         key={match.index}
         href={`/people/${person.id}`}
-        className="font-medium text-accent-ink hover:underline"
+        className="font-semibold hover:underline"
       >
         {person.name}
       </Link>,

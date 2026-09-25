@@ -2,11 +2,11 @@
 
 import { createContext, useContext, useState } from "react";
 import { CURRENT_USER_ID, NOW, initialNotifications, initialPosts } from "./data";
-import type { AppNotification, LifeEvent, Post, ReactionType } from "./types";
+import type { AppNotification, LifeEvent, Photo, Post, ReactionType } from "./types";
 
 // In-memory stand-in for the API until the endpoints exist.
 
-type NewPost = { text: string; tagged: string[]; lifeEvent?: LifeEvent };
+type NewPost = { text: string; tagged: string[]; photos?: Photo[]; lifeEvent?: LifeEvent };
 
 type Store = {
   posts: Post[];
@@ -16,6 +16,10 @@ type Store = {
   react: (postId: string, type: ReactionType) => void;
   addComment: (postId: string, text: string) => void;
   markAllRead: () => void;
+  // The new-post sheet can be opened from anywhere, optionally with people pre-tagged.
+  composer: { tags: string[] } | null;
+  openComposer: (tags?: string[]) => void;
+  closeComposer: () => void;
 };
 
 const StoreContext = createContext<Store | null>(null);
@@ -23,6 +27,7 @@ const StoreContext = createContext<Store | null>(null);
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [posts, setPosts] = useState(initialPosts);
   const [notifications, setNotifications] = useState(initialNotifications);
+  const [composer, setComposer] = useState<{ tags: string[] } | null>(null);
 
   const updatePost = (postId: string, fn: (p: Post) => Post) =>
     setPosts((all) => all.map((p) => (p.id === postId ? fn(p) : p)));
@@ -31,7 +36,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     posts,
     notifications,
     unreadCount: notifications.filter((n) => !n.read).length,
-    addPost: ({ text, tagged, lifeEvent }) =>
+    addPost: ({ text, tagged, photos, lifeEvent }) =>
       setPosts((all) => [
         {
           id: `p-${all.length + 1}-${Date.now()}`,
@@ -39,6 +44,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           createdAt: NOW.toISOString(),
           text,
           tagged,
+          photos: photos?.length ? photos : undefined,
           lifeEvent,
           reactions: [],
           comments: [],
@@ -66,6 +72,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           },
         ],
       })),
+    composer,
+    openComposer: (tags = []) => setComposer({ tags }),
+    closeComposer: () => setComposer(null),
     markAllRead: () =>
       setNotifications((all) => all.map((n) => ({ ...n, read: true }))),
   };

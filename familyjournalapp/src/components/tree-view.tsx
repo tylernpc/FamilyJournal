@@ -118,7 +118,7 @@ export function TreeView({
   };
 
   return (
-    <div className="flex h-[calc(100dvh-112px-env(safe-area-inset-top)-env(safe-area-inset-bottom))] min-h-0 lg:h-dvh">
+    <div className="flex h-[calc(100dvh-112px-env(safe-area-inset-top)-env(safe-area-inset-bottom))] min-h-0 lg:h-[calc(100dvh-64px)]">
       <Canvas
         focusId={initialPerson ?? CURRENT_USER_ID}
         posts={posts}
@@ -402,8 +402,8 @@ function Canvas({
   return (
     <div className="relative min-w-0 flex-1 overflow-hidden bg-canvas">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-4">
-        <div className="pointer-events-auto min-w-0 rounded-md bg-canvas/85 pr-2 backdrop-blur-sm">
-          <h1 className="font-serif text-[22px] leading-tight sm:text-[24px]">Family tree</h1>
+        <div className="pointer-events-auto min-w-0 rounded-lg bg-canvas/85 pr-2 backdrop-blur-sm">
+          <h1 className="display text-[26px] sm:text-[24px]">Family tree</h1>
           <p className="text-[13px] text-ink-3">
             {people.length} people · {layout.generations} generations
           </p>
@@ -500,7 +500,7 @@ function Canvas({
               })}
             </g>
 
-            <g fill="none" stroke="var(--accent)" strokeLinecap="round">
+            <g fill="none" stroke="var(--signal)" strokeLinecap="round">
               {threads.map((t) => {
                 const { d } = threadPath(layout.nodes.get(t.a)!, layout.nodes.get(t.b)!);
                 return (
@@ -558,7 +558,7 @@ function Canvas({
                   )}
                   {recent.has(p.id) && (
                     <span
-                      className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-white"
+                      className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-signal ring-2 ring-white"
                       title="In a post this week"
                     />
                   )}
@@ -585,7 +585,7 @@ function Canvas({
                 key={`b-${t.a}-${t.b}`}
                 onClick={() => onThread(t)}
                 title={`${t.count} shared post${t.count > 1 ? "s" : ""}: ${fullName(getPerson(t.a))} & ${fullName(getPerson(t.b))}`}
-                className="absolute flex h-[22px] min-w-[22px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-accent bg-surface px-1.5 text-[11px] font-semibold tabular-nums text-accent-ink hover:bg-accent-soft"
+                className="absolute flex h-[22px] min-w-[22px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-signal bg-surface px-1.5 text-[11px] font-semibold tabular-nums text-signal hover:bg-sunken"
                 style={{ left: mid.x, top: mid.y }}
               >
                 {t.count}
@@ -634,12 +634,12 @@ function Legend() {
       </span>
       <span className="flex items-center gap-1.5">
         <svg width="18" height="8" aria-hidden="true">
-          <path d="M1 4 H17" stroke="var(--accent)" strokeWidth="2" strokeDasharray="1 4" strokeLinecap="round" />
+          <path d="M1 4 H17" stroke="var(--signal)" strokeWidth="2" strokeDasharray="1 4" strokeLinecap="round" />
         </svg>
         Shared posts
       </span>
       <span className="flex items-center gap-1.5">
-        <span className="h-2 w-2 rounded-full bg-accent" />
+        <span className="h-2 w-2 rounded-full bg-signal" />
         In a post this week
       </span>
     </div>
@@ -676,7 +676,7 @@ function Overview(props: ListProps) {
   return (
     <div className="overflow-y-auto px-3 py-5">
       <div className="px-2">
-        <h2 className="text-[15px] font-semibold">Across the tree</h2>
+        <h2 className="display text-[24px]">Across the tree</h2>
         <p className="mt-1 text-[13px] leading-relaxed text-ink-3">
           Every post links the people tagged in it. Point at one to see who it brings together, or
           pick a person to follow their threads.
@@ -695,6 +695,7 @@ function PersonPanel({
   onBetween,
   ...list
 }: ListProps & { id: string; onClose: () => void; onBetween: (id: string) => void }) {
+  const { openComposer } = useStore();
   const person = getPerson(id);
   const theirs = list.posts.filter((p) => postInvolves(p, id));
   const together = companions(list.posts, id);
@@ -705,7 +706,7 @@ function PersonPanel({
       <div className="flex items-start gap-3 border-b border-line p-5">
         <Avatar personId={id} size={52} />
         <div className="min-w-0 flex-1">
-          <h2 className="font-serif text-[22px] leading-tight">{fullName(person)}</h2>
+          <h2 className="display text-[26px]">{fullName(person)}</h2>
           <p className="mt-0.5 text-[13px] text-ink-3">
             {isMe ? "You" : kinship(CURRENT_USER_ID, id)}
             {lifespan(person) && <> · {lifespan(person)}</>}
@@ -719,20 +720,20 @@ function PersonPanel({
                   : `Added by ${getPerson(person.addedBy ?? CURRENT_USER_ID).firstName}`}
             </p>
           )}
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             <Link
               href={`/people/${id}`}
-              className="flex h-8 items-center rounded-md border border-line px-3 text-[13px] font-medium hover:bg-hover"
+              className="flex h-9 items-center whitespace-nowrap rounded-full border border-ink px-3.5 text-[14px] font-semibold hover:bg-hover"
             >
               View profile
             </Link>
             {!isMe && (
-              <Link
-                href={`/?with=${id}`}
-                className="flex h-8 items-center rounded-md px-3 text-[13px] text-ink-2 hover:bg-hover"
+              <button
+                onClick={() => openComposer([id])}
+                className="flex h-9 items-center whitespace-nowrap rounded-full bg-ink px-3.5 text-[14px] font-semibold text-canvas"
               >
                 Post with {person.firstName}
-              </Link>
+              </button>
             )}
           </div>
         </div>
@@ -796,6 +797,7 @@ function BetweenPanel({
   onBack,
   ...list
 }: ListProps & { a: string; b: string; onBack: () => void }) {
+  const { openComposer } = useStore();
   const shared = sharedPosts(list.posts, a, b);
   return (
     <div className="flex min-h-0 flex-col">
@@ -813,7 +815,7 @@ function BetweenPanel({
             <Avatar personId={b} size={44} className="rounded-full ring-2 ring-surface" />
           </span>
           <div className="min-w-0">
-            <h2 className="font-serif text-[21px] leading-tight">
+            <h2 className="display text-[24px]">
               {getPerson(a).firstName} &amp; {getPerson(b).firstName}
             </h2>
             <p className="text-[13px] text-ink-3">{relationSentence(a, b)}</p>
@@ -828,12 +830,12 @@ function BetweenPanel({
         <div className="mt-1">
           <SnippetList {...list} posts={shared} />
         </div>
-        <Link
-          href={`/?with=${[a, b].filter((id) => id !== CURRENT_USER_ID).join(",")}`}
-          className="mx-2 mt-4 flex h-9 items-center justify-center rounded-md border border-dashed border-line-strong text-[13px] text-ink-2 hover:bg-hover hover:text-ink"
+        <button
+          onClick={() => openComposer([a, b].filter((id) => id !== CURRENT_USER_ID))}
+          className="mx-2 mt-4 flex h-10 w-[calc(100%-1rem)] items-center justify-center rounded-full border border-ink text-[14px] font-semibold hover:bg-hover"
         >
-          Add a post with both of them
-        </Link>
+          Post with both of them
+        </button>
       </div>
     </div>
   );

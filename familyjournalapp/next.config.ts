@@ -5,8 +5,6 @@ const nextConfig: NextConfig = {
   images: {
     // Placeholder photos for the mock data; remove once profiles and posts use uploaded media.
     remotePatterns: [
-      { protocol: "https", hostname: "picsum.photos" },
-      { protocol: "https", hostname: "fastly.picsum.photos" },
       { protocol: "https", hostname: "images.unsplash.com" },
     ],
   },

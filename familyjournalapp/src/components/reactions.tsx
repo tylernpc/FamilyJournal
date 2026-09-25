@@ -8,11 +8,12 @@ import { useStore } from "@/lib/store";
 import type { Post, ReactionType } from "@/lib/types";
 import { useDismiss } from "@/lib/use-dismiss";
 import { Avatar } from "./avatar";
-import { CloseIcon, CommentIcon, ThumbIcon } from "./icons";
+import { CloseIcon, HeartIcon } from "./icons";
+import { Sheet } from "./sheet";
 
 export const REACTIONS: { type: ReactionType; emoji: string; label: string }[] = [
-  { type: "like", emoji: "👍", label: "Like" },
   { type: "love", emoji: "❤️", label: "Love" },
+  { type: "like", emoji: "👍", label: "Like" },
   { type: "haha", emoji: "😆", label: "Haha" },
   { type: "wow", emoji: "😮", label: "Wow" },
   { type: "sad", emoji: "😢", label: "Sad" },
@@ -26,110 +27,94 @@ function countsByType(post: Post) {
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
 }
 
+// "Carol and 7 others"
 export function ReactionSummary({ post }: { post: Post }) {
   const [open, setOpen] = useState(false);
-  const counts = countsByType(post);
-  if (!post.reactions.length) return <span />;
+  if (!post.reactions.length) return null;
 
-  const mine = post.reactions.some((r) => r.personId === CURRENT_USER_ID);
+  const counts = countsByType(post);
   const others = post.reactions.filter((r) => r.personId !== CURRENT_USER_ID);
+  const mine = others.length !== post.reactions.length;
+  const lead = others[0] && getPerson(others[0].personId).firstName;
+  const rest = others.length - 1;
   const label = mine
     ? others.length
       ? `You and ${others.length} other${others.length > 1 ? "s" : ""}`
       : "You"
-    : others.length === 1
-      ? fullName(getPerson(others[0].personId))
-      : `${getPerson(others[0].personId).firstName} and ${others.length - 1} others`;
+    : rest > 0
+      ? `${lead} and ${rest} other${rest > 1 ? "s" : ""}`
+      : lead;
 
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 rounded text-[13px] text-ink-3 hover:text-ink-2 hover:underline"
+        className="flex items-center gap-1.5 text-[14px] text-ink-2 hover:text-ink"
       >
-        <span className="flex -space-x-1">
+        <span className="flex -space-x-0.5 text-[13px]">
           {counts.slice(0, 3).map(([type]) => (
-            <span
-              key={type}
-              className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-surface text-[11px] ring-2 ring-surface"
-            >
-              {emojiFor(type)}
-            </span>
+            <span key={type}>{emojiFor(type)}</span>
           ))}
         </span>
         {label}
       </button>
-      {open && <ReactionsDialog post={post} onClose={() => setOpen(false)} />}
+      {open && <ReactionsSheet post={post} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-function ReactionsDialog({ post, onClose }: { post: Post; onClose: () => void }) {
+function ReactionsSheet({ post, onClose }: { post: Post; onClose: () => void }) {
   const [tab, setTab] = useState<ReactionType | "all">("all");
-  const ref = useRef<HTMLDivElement>(null);
-  useDismiss(ref, true, onClose);
   const counts = countsByType(post);
   const list = post.reactions.filter((r) => tab === "all" || r.type === tab);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 sm:items-center">
-      <div
-        ref={ref}
-        role="dialog"
-        aria-label="Reactions"
-        className="flex max-h-[70dvh] w-full max-w-sm flex-col rounded-t-xl bg-surface shadow-pop sm:rounded-xl"
-      >
-        <div className="flex items-center border-b border-line px-2">
-          <div className="flex flex-1 gap-1 overflow-x-auto">
-            <TabButton active={tab === "all"} onClick={() => setTab("all")}>
-              All {post.reactions.length}
-            </TabButton>
-            {counts.map(([type, n]) => (
-              <TabButton key={type} active={tab === type} onClick={() => setTab(type)}>
-                {emojiFor(type)} {n}
-              </TabButton>
-            ))}
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-md p-1.5 text-ink-3 hover:bg-hover hover:text-ink"
-            aria-label="Close"
-          >
-            <CloseIcon size={18} />
-          </button>
+    <Sheet label="Reactions" onClose={onClose}>
+      <div className="flex items-center gap-1 border-b border-line px-2">
+        <div className="no-scrollbar flex flex-1 overflow-x-auto">
+          <Tab active={tab === "all"} onClick={() => setTab("all")}>
+            All {post.reactions.length}
+          </Tab>
+          {counts.map(([type, n]) => (
+            <Tab key={type} active={tab === type} onClick={() => setTab(type)}>
+              {emojiFor(type)} {n}
+            </Tab>
+          ))}
         </div>
-        <ul className="overflow-y-auto py-1.5">
-          {list.map((r) => {
-            const person = getPerson(r.personId);
-            return (
-              <li key={r.personId}>
-                <Link
-                  href={`/people/${person.id}`}
-                  className="flex items-center gap-3 px-4 py-2 hover:bg-hover"
-                >
-                  <span className="relative">
-                    <Avatar personId={person.id} size={36} />
-                    <span className="absolute -bottom-1 -right-1 text-[13px]">
-                      {emojiFor(r.type)}
-                    </span>
-                  </span>
-                  <span className="leading-tight">
-                    <span className="block text-[14px] font-medium">{fullName(person)}</span>
-                    <span className="text-[12px] text-ink-3">
-                      {kinship(CURRENT_USER_ID, person.id)}
-                    </span>
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-hover"
+        >
+          <CloseIcon size={20} />
+        </button>
       </div>
-    </div>
+      <ul className="overflow-y-auto py-2">
+        {list.map((r) => (
+          <li key={r.personId}>
+            <Link
+              href={`/people/${r.personId}`}
+              className="flex items-center gap-3 px-4 py-2 hover:bg-hover"
+            >
+              <Avatar personId={r.personId} size={44} />
+              <span className="flex-1 leading-tight">
+                <span className="block text-[15px] font-semibold">
+                  {fullName(getPerson(r.personId))}
+                </span>
+                <span className="text-[13px] text-ink-3">
+                  {r.personId === CURRENT_USER_ID ? "You" : kinship(CURRENT_USER_ID, r.personId)}
+                </span>
+              </span>
+              <span className="text-[20px]">{emojiFor(r.type)}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Sheet>
   );
 }
 
-function TabButton({
+function Tab({
   active,
   onClick,
   children,
@@ -141,8 +126,8 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`-mb-px shrink-0 border-b-2 px-3 py-3 text-[13px] ${
-        active ? "border-ink font-medium text-ink" : "border-transparent text-ink-3 hover:text-ink-2"
+      className={`-mb-px shrink-0 border-b-2 px-3 py-3.5 text-[14px] ${
+        active ? "border-ink font-semibold text-ink" : "border-transparent text-ink-3"
       }`}
     >
       {children}
@@ -150,99 +135,84 @@ function TabButton({
   );
 }
 
-export function PostActions({ post, onComment }: { post: Post; onComment: () => void }) {
+// Tap to love; hold (touch) or hover (mouse) for the other reactions.
+export function ReactButton({ post }: { post: Post }) {
   const { react } = useStore();
   const [picker, setPicker] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const mine = post.reactions.find((r) => r.personId === CURRENT_USER_ID);
-  const current = mine && REACTIONS.find((r) => r.type === mine.type)!;
-
   const wrap = useRef<HTMLDivElement>(null);
   const longPressed = useRef(false);
   useDismiss(wrap, picker, () => setPicker(false));
 
-  const show = () => {
+  const mine = post.reactions.find((r) => r.personId === CURRENT_USER_ID);
+
+  const later = (fn: () => void, ms: number) => {
     clearTimeout(timer.current);
-    timer.current = setTimeout(() => setPicker(true), 350);
-  };
-  const hide = () => {
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setPicker(false), 250);
+    timer.current = setTimeout(fn, ms);
   };
 
   return (
-    <div className="grid grid-cols-2 gap-1">
-      <div
-        ref={wrap}
-        className="relative"
-        // Mouse: hover opens the picker. Touch: press and hold, like the native apps.
-        onPointerEnter={(e) => e.pointerType === "mouse" && show()}
-        onPointerLeave={(e) => e.pointerType === "mouse" && hide()}
-      >
-        <button
-          onPointerDown={(e) => {
-            if (e.pointerType === "mouse") return;
-            longPressed.current = false;
-            clearTimeout(timer.current);
-            timer.current = setTimeout(() => {
-              longPressed.current = true;
-              setPicker(true);
-            }, 400);
-          }}
-          onPointerUp={() => clearTimeout(timer.current)}
-          onPointerCancel={() => clearTimeout(timer.current)}
-          onContextMenu={(e) => e.preventDefault()}
-          onClick={() => {
-            if (longPressed.current) {
-              longPressed.current = false;
-              return;
-            }
-            setPicker(false);
-            react(post.id, mine?.type ?? "like");
-          }}
-          className={`flex h-10 w-full select-none items-center justify-center gap-2 rounded-md text-[14px] [-webkit-touch-callout:none] hover:bg-hover ${
-            current ? "font-medium text-accent-ink" : "text-ink-2"
-          }`}
-        >
-          {current ? (
-            <span className="text-[15px] leading-none">{current.emoji}</span>
-          ) : (
-            <ThumbIcon size={18} />
-          )}
-          {current ? current.label : "Like"}
-        </button>
-        {picker && (
-          <div
-            role="menu"
-            className="absolute bottom-full left-0 z-20 mb-1.5 flex gap-0.5 rounded-full border border-line bg-surface p-1 shadow-pop"
-          >
-            {REACTIONS.map((r) => (
-              <button
-                key={r.type}
-                role="menuitem"
-                title={r.label}
-                aria-label={r.label}
-                onClick={() => {
-                  react(post.id, r.type);
-                  setPicker(false);
-                }}
-                className={`flex h-10 w-10 items-center justify-center rounded-full text-[22px] transition-transform hover:-translate-y-0.5 hover:scale-110 ${
-                  mine?.type === r.type ? "bg-sunken" : ""
-                }`}
-              >
-                {r.emoji}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+    <div
+      ref={wrap}
+      className="relative"
+      onPointerEnter={(e) => e.pointerType === "mouse" && later(() => setPicker(true), 450)}
+      onPointerLeave={(e) => e.pointerType === "mouse" && later(() => setPicker(false), 250)}
+    >
       <button
-        onClick={onComment}
-        className="flex h-10 items-center justify-center gap-2 rounded-md text-[14px] text-ink-2 hover:bg-hover"
+        aria-label={mine ? `Remove ${mine.type}` : "Love"}
+        onPointerDown={(e) => {
+          if (e.pointerType === "mouse") return;
+          longPressed.current = false;
+          later(() => {
+            longPressed.current = true;
+            setPicker(true);
+          }, 400);
+        }}
+        onPointerUp={() => clearTimeout(timer.current)}
+        onPointerCancel={() => clearTimeout(timer.current)}
+        onContextMenu={(e) => e.preventDefault()}
+        onClick={() => {
+          if (longPressed.current) {
+            longPressed.current = false;
+            return;
+          }
+          setPicker(false);
+          react(post.id, mine?.type ?? "love");
+        }}
+        className="-ml-2 flex h-10 w-10 select-none items-center justify-center rounded-full [-webkit-touch-callout:none] hover:bg-hover"
       >
-        <CommentIcon size={18} />
-        Comment
+        {!mine ? (
+          <HeartIcon size={25} />
+        ) : mine.type === "love" ? (
+          <HeartIcon size={25} filled className="text-signal" />
+        ) : (
+          <span className="text-[21px] leading-none">{emojiFor(mine.type)}</span>
+        )}
       </button>
+      {picker && (
+        <div
+          role="menu"
+          className="absolute bottom-full left-[-8px] z-20 mb-1 flex gap-0.5 rounded-full bg-surface p-1.5 shadow-pop ring-1 ring-line"
+        >
+          {REACTIONS.map((r) => (
+            <button
+              key={r.type}
+              role="menuitem"
+              title={r.label}
+              aria-label={r.label}
+              onClick={() => {
+                react(post.id, r.type);
+                setPicker(false);
+              }}
+              className={`flex h-10 w-10 items-center justify-center rounded-full text-[24px] transition-transform hover:-translate-y-1 hover:scale-110 ${
+                mine?.type === r.type ? "bg-sunken" : ""
+              }`}
+            >
+              {r.emoji}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
