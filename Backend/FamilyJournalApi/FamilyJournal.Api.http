@@ -1,6 +1,17 @@
 @FamilyJournal.Api_HostAddress = http://localhost:5092
 
-GET {{FamilyJournal.Api_HostAddress}}/weatherforecast/
+# @name createFamily
+POST {{FamilyJournal.Api_HostAddress}}/api/families
+Content-Type: application/json
+
+{
+  "name": "The Smiths",
+  "founderDisplayName": "Jane Smith"
+}
+
+###
+
+GET {{FamilyJournal.Api_HostAddress}}/api/families/{{createFamily.response.body.$.id}}
 Accept: application/json
 
 ###
