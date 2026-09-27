@@ -12,6 +12,11 @@ public class UserAccessor(DatabaseContext db) : IUserAccessor
 
     public async Task<UserDto?> CreateUser(string email, string normalizedEmail, string passwordHash, string firstName, string lastName, DateTimeOffset createdAt)
     {
+        if (await db.Users.AnyAsync(u => u.NormalizedEmail == normalizedEmail))
+        {
+            return null;
+        }
+
         var user = new User
         {
             Email = email,

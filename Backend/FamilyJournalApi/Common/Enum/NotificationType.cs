@@ -10,5 +10,7 @@ public enum NotificationType
 
     MemberJoined = 3,
 
-    MemberTagged = 4
+    MemberTagged = 4,
+
+    Mentioned = 5
 }

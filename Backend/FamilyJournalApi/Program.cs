@@ -15,7 +15,8 @@ builder.Services
     .AddDatabase(builder.Configuration)
     .AddAuth(builder.Configuration)
     .AddWebClient(builder.Configuration)
-    .AddFamilyJournal();
+    .AddEventBus()
+    .AddFamilyJournal(builder.Configuration);
 
 var app = builder.Build();
 

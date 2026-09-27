@@ -103,10 +103,14 @@ Family membership check ("is the caller a member of this family?") is resolved o
 | Controller | Endpoints (MVP) |
 |---|---|
 | `AuthController` | register, login, refresh, logout, current account (`/api/auth/me`) |
-| `FamiliesController` | create family, invite, join/claim, members, roles |
-| `ProfilesController` | CRUD individuals, relationship links, **tree view** |
-| `PostsController` | posts, comments, reactions, feed, photo upload |
-| `NotificationsController` | list, mark read |
+| `FamiliesController` / `FamilyController` | create family; then name, member roles, invites (create, list, resend, revoke) |
+| `InviteLinksController` | `/api/invites/{token}`: preview before sign-in, accept (claim a placeholder or start a new profile) |
+| `PeopleController` | people (members and placeholders), relationship links, **tree view** |
+| `PostsController` | feed (paged, filter by person), posts, emoji reactions, comments with @mentions |
+| `MediaController` / `MediaFilesController` | photo upload; photos served by signed URL |
+| `NotificationsController` | list, unread count, mark read |
+
+Everything inside a family lives under `/api/families/{familyId}/…` and inherits `FamilyControllerBase`, whose `[FamilyScoped]` filter runs the membership check before any action.
 
 ---
 
@@ -148,6 +152,8 @@ sequenceDiagram
 
 Start with MassTransit's **in-memory transport**; swap to RabbitMQ/Azure Service Bus when mobile push arrives — no manager code changes.
 
+In code: managers publish through `IEventPublisher` (so they never reference MassTransit), and small consumer classes in `Managers/Events` hand each event to `NotificationManager`. MassTransit is pinned to **8.x** — v9 needs a commercial license.
+
 ---
 
 ## 🧠 Engines
@@ -175,7 +181,7 @@ One accessor per **resource**, exposing atomic *business verbs* — not generic 
 | `RelationshipAccessor` | Relationship edges | `Link(parent/child/spouse)`, `GetFamilyRelationships` |
 | `PostAccessor` | Posts, comments, reactions, tags | `SavePost`, `GetFeedPage`, `AddReaction` |
 | `NotificationAccessor` | Notifications | `CreateBatch`, `GetUnread`, `MarkRead` |
-| `MediaAccessor` | Photo blobs | `Upload`, `GetSignedUrl` — hides blob-storage choice |
+| `MediaAccessor` | Photo blobs | `SaveMedia`, `GetSignedUrl` — hides blob-storage choice (local disk today). Photo URLs are HMAC-signed and expire, so `<img>` tags work without a sign-in header |
 
 ---
 

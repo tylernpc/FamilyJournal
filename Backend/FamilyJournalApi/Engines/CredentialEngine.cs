@@ -77,5 +77,15 @@ public class CredentialEngine(IOptions<JwtOptions> options, TimeProvider timePro
     public string HashRefreshToken(string refreshToken) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(refreshToken)));
 
+    public (string Token, string Hash) CreateInviteToken()
+    {
+        var token = Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(32));
+
+        return (token, HashInviteToken(token));
+    }
+
+    // Same reasoning as refresh tokens: random, so a fast hash is enough
+    public string HashInviteToken(string inviteToken) => HashRefreshToken(inviteToken);
+
     public static SymmetricSecurityKey SigningKey(JwtOptions jwt) => new(Encoding.UTF8.GetBytes(jwt.SigningKey));
 }

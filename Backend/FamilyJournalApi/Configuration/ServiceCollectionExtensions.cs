@@ -2,6 +2,8 @@ using System.Text.Json.Serialization;
 using FamilyJournalApi.Accessors;
 using FamilyJournalApi.Engines;
 using FamilyJournalApi.Managers;
+using FamilyJournalApi.Managers.Events;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 
 namespace FamilyJournalApi.Configuration;
@@ -34,13 +36,18 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// iDesign layers: register new managers, engines, and accessors here.
     /// </summary>
-    public static IServiceCollection AddFamilyJournal(this IServiceCollection services)
+    public static IServiceCollection AddFamilyJournal(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddSingleton(TimeProvider.System);
+
+        services.AddOptions<MediaOptions>().Bind(configuration.GetSection(MediaOptions.SectionName));
 
         // Managers
         services.AddScoped<IAccountManager, AccountManager>();
         services.AddScoped<IFamilyManager, FamilyManager>();
+        services.AddScoped<IProfileManager, ProfileManager>();
+        services.AddScoped<IPostManager, PostManager>();
+        services.AddScoped<INotificationManager, NotificationManager>();
 
         // Engines
         services.AddScoped<ICredentialEngine, CredentialEngine>();
@@ -49,6 +56,37 @@ public static class ServiceCollectionExtensions
         // Accessors
         services.AddScoped<IFamilyAccessor, FamilyAccessor>();
         services.AddScoped<IUserAccessor, UserAccessor>();
+        services.AddScoped<IProfileAccessor, ProfileAccessor>();
+        services.AddScoped<IRelationshipAccessor, RelationshipAccessor>();
+        services.AddScoped<IPostAccessor, PostAccessor>();
+        services.AddScoped<IMediaAccessor, MediaAccessor>();
+        services.AddScoped<INotificationAccessor, NotificationAccessor>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Events between managers. In-memory for now; switching to RabbitMQ or Azure Service Bus
+    /// only changes the transport line below.
+    /// </summary>
+    public static IServiceCollection AddEventBus(this IServiceCollection services)
+    {
+        services.AddScoped<IEventPublisher, MassTransitEventPublisher>();
+
+        services.AddMassTransit(bus =>
+        {
+            bus.AddConsumer<PostCreatedConsumer>();
+            bus.AddConsumer<CommentAddedConsumer>();
+            bus.AddConsumer<ReactionAddedConsumer>();
+            bus.AddConsumer<MemberJoinedConsumer>();
+
+            bus.UsingInMemory((context, transport) =>
+            {
+                // A notification failing to save shouldn't vanish on the first hiccup
+                transport.UseMessageRetry(retry => retry.Interval(3, TimeSpan.FromSeconds(1)));
+                transport.ConfigureEndpoints(context);
+            });
+        });
 
         return services;
     }

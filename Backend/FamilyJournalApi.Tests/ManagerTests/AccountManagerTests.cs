@@ -13,7 +13,7 @@ public class AccountManagerTests
 
     private readonly FakeTimeProvider clock = TestCredentials.Clock();
     private readonly FakeUserAccessor users = new();
-    private readonly FakeFamilyAccessor families = new();
+    private readonly FakeFamilyAccessor families = new(new FakeDatabase());
     private readonly AccountManager manager;
 
     public AccountManagerTests()

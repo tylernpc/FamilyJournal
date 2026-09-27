@@ -18,4 +18,11 @@ public interface ICredentialEngine
     RefreshTokenContract CreateRefreshToken();
 
     string HashRefreshToken(string refreshToken);
+
+    /// <summary>
+    /// A secret for an invite link. Only the hash is stored.
+    /// </summary>
+    (string Token, string Hash) CreateInviteToken();
+
+    string HashInviteToken(string inviteToken);
 }

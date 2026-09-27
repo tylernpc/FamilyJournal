@@ -392,3 +392,6 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Locally stored photo uploads (Media:RootPath)
+**/App_Data/
