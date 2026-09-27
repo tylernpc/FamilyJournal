@@ -9,7 +9,7 @@ public class Profile : IdGeneratedModel
 
     public string DisplayName { get; set; } = string.Empty;
 
-    // null for placeholders (and for everyone until auth lands); column is already NULL in 001_InitialCreate.sql
+    // The account that owns this profile; null for placeholders nobody has claimed yet
     public Guid? UserId { get; set; }
 
     public bool IsPlaceholder { get; set; }

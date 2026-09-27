@@ -13,6 +13,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services
     .AddApiControllers()
     .AddDatabase(builder.Configuration)
+    .AddAuth(builder.Configuration)
+    .AddWebClient(builder.Configuration)
     .AddFamilyJournal();
 
 var app = builder.Build();
@@ -32,12 +34,17 @@ upgrader.PerformUpgrade();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi().AllowAnonymous();
 }
 
 app.UseHttpsRedirection();
 
+app.UseCors();
+
+app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseRateLimiter();
 
 app.MapControllers();
 

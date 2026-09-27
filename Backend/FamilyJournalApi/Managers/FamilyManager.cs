@@ -9,15 +9,21 @@ namespace FamilyJournalApi.Managers;
 /// a manager should generally own its own orchestration i.e. it should be
 /// used for something specifically
 /// </summary>
-public class FamilyManager(IFamilyAccessor familyAccessor, TimeProvider timeProvider) : IFamilyManager
+public class FamilyManager(IFamilyAccessor familyAccessor, IUserAccessor userAccessor, TimeProvider timeProvider) : IFamilyManager
 {
-    public async Task<FamilyModel> CreateFamily(CreateFamilyRequest request)
+    public async Task<FamilyModel?> CreateFamily(Guid userId, CreateFamilyRequest request)
     {
-        // TODO(#4): pass the signed-in user's id once auth exists
+        var founder = await userAccessor.GetUser(userId);
+
+        if (founder is null)
+        {
+            return null;
+        }
+
         var family = await familyAccessor.CreateFamily(
             request.Name.Trim(),
-            request.FounderDisplayName.Trim(),
-            founderUserId: null,
+            $"{founder.FirstName} {founder.LastName}",
+            founder.Id,
             timeProvider.GetUtcNow());
 
         // TODO(#3): publish MemberJoined once MassTransit is wired up

@@ -16,6 +16,8 @@ public class DatabaseContext : DbContext
     public DbSet<Reaction> Reactions => Set<Reaction>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<Invite> Invites => Set<Invite>();
+    public DbSet<User> Users => Set<User>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,6 +35,19 @@ public class DatabaseContext : DbContext
         modelBuilder.Entity<Invite>()
             .HasIndex(i => i.Token)
             .IsUnique();
+
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.NormalizedEmail)
+            .IsUnique();
+
+        modelBuilder.Entity<RefreshToken>()
+            .HasIndex(t => t.TokenHash)
+            .IsUnique();
+
+        modelBuilder.Entity<Profile>()
+            .HasOne<User>().WithMany()
+            .HasForeignKey(p => p.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // Restrict deletes on multi-FK paths to Profile to avoid SQL Server cascade conflicts
         modelBuilder.Entity<Relationship>()

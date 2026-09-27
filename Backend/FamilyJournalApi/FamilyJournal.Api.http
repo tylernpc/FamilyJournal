@@ -1,17 +1,67 @@
 @FamilyJournal.Api_HostAddress = http://localhost:5092
 
-# @name createFamily
-POST {{FamilyJournal.Api_HostAddress}}/api/families
+# Run register once; use login after that.
+# @name register
+POST {{FamilyJournal.Api_HostAddress}}/api/auth/register
 Content-Type: application/json
 
 {
-  "name": "The Smiths",
-  "founderDisplayName": "Jane Smith"
+  "email": "jane@example.com",
+  "password": "correct horse battery",
+  "firstName": "Jane",
+  "lastName": "Smith"
+}
+
+###
+
+# @name login
+POST {{FamilyJournal.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "jane@example.com",
+  "password": "correct horse battery"
+}
+
+###
+
+GET {{FamilyJournal.Api_HostAddress}}/api/auth/me
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+###
+
+# @name refresh
+POST {{FamilyJournal.Api_HostAddress}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{login.response.body.$.refreshToken}}"
+}
+
+###
+
+# @name createFamily
+POST {{FamilyJournal.Api_HostAddress}}/api/families
+Authorization: Bearer {{login.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "The Smiths"
 }
 
 ###
 
 GET {{FamilyJournal.Api_HostAddress}}/api/families/{{createFamily.response.body.$.id}}
+Authorization: Bearer {{login.response.body.$.accessToken}}
 Accept: application/json
+
+###
+
+POST {{FamilyJournal.Api_HostAddress}}/api/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refresh.response.body.$.refreshToken}}"
+}
 
 ###

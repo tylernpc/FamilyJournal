@@ -39,13 +39,16 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(TimeProvider.System);
 
         // Managers
+        services.AddScoped<IAccountManager, AccountManager>();
         services.AddScoped<IFamilyManager, FamilyManager>();
 
         // Engines
+        services.AddScoped<ICredentialEngine, CredentialEngine>();
         services.AddScoped<ITreeEngine, TreeEngine>();
 
         // Accessors
         services.AddScoped<IFamilyAccessor, FamilyAccessor>();
+        services.AddScoped<IUserAccessor, UserAccessor>();
 
         return services;
     }

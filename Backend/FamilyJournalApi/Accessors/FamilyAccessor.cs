@@ -10,7 +10,7 @@ namespace FamilyJournalApi.Accessors;
 /// </summary>
 public class FamilyAccessor(DatabaseContext db) : IFamilyAccessor
 {
-    public async Task<FamilyDto> CreateFamily(string name, string founderDisplayName, Guid? founderUserId, DateTimeOffset createdAt)
+    public async Task<FamilyDto> CreateFamily(string name, string founderDisplayName, Guid founderUserId, DateTimeOffset createdAt)
     {
         var family = new Family { Name = name, CreatedAt = createdAt };
 
@@ -23,7 +23,7 @@ public class FamilyAccessor(DatabaseContext db) : IFamilyAccessor
             CreatedAt = createdAt
         };
 
-        var membership = new FamilyMember
+        var founderMember = new FamilyMember
         {
             FamilyId = family.Id,
             ProfileId = founder.Id,
@@ -33,7 +33,7 @@ public class FamilyAccessor(DatabaseContext db) : IFamilyAccessor
 
         db.Families.Add(family);
         db.Profiles.Add(founder);
-        db.FamilyMembers.Add(membership);
+        db.FamilyMembers.Add(founderMember);
 
         // single SaveChanges = single transaction, so a family never exists without its admin
         await db.SaveChangesAsync();
@@ -49,8 +49,8 @@ public class FamilyAccessor(DatabaseContext db) : IFamilyAccessor
                 {
                     ProfileId = founder.Id,
                     DisplayName = founder.DisplayName,
-                    Role = membership.Role,
-                    JoinedAt = membership.JoinedAt
+                    Role = founderMember.Role,
+                    JoinedAt = founderMember.JoinedAt
                 }
             ]
         };
@@ -78,5 +78,22 @@ public class FamilyAccessor(DatabaseContext db) : IFamilyAccessor
                     .ToList()
             })
             .SingleOrDefaultAsync();
+    }
+
+    public async Task<List<UserFamilyDto>> GetFamiliesForUser(Guid userId)
+    {
+        return await db.FamilyMembers
+            .AsNoTracking()
+            .Where(m => m.Profile.UserId == userId)
+            .OrderBy(m => m.JoinedAt)
+            .Select(m => new UserFamilyDto
+            {
+                FamilyId = m.FamilyId,
+                FamilyName = m.Family.Name,
+                ProfileId = m.ProfileId,
+                Role = m.Role,
+                JoinedAt = m.JoinedAt
+            })
+            .ToListAsync();
     }
 }

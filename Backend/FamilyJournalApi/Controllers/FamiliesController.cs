@@ -11,9 +11,15 @@ public class FamiliesController(IFamilyManager familyManager) : ControllerBase
     [HttpPost]
     [ProducesResponseType<FamilyModel>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<FamilyModel>> CreateFamily(CreateFamilyRequest request)
     {
-        var family = await familyManager.CreateFamily(request);
+        var family = await familyManager.CreateFamily(User.GetUserId(), request);
+
+        if (family is null)
+        {
+            return Unauthorized();
+        }
 
         return CreatedAtAction(nameof(GetFamily), new { familyId = family.Id }, family);
     }
