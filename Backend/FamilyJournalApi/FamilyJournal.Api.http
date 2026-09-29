@@ -1,6 +1,206 @@
 @FamilyJournal.Api_HostAddress = http://localhost:5092
 
-GET {{FamilyJournal.Api_HostAddress}}/weatherforecast/
+# Run register once; use login after that.
+# @name register
+POST {{FamilyJournal.Api_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "jane@example.com",
+  "password": "correct horse battery",
+  "firstName": "Jane",
+  "lastName": "Smith"
+}
+
+###
+
+# @name login
+POST {{FamilyJournal.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "jane@example.com",
+  "password": "correct horse battery"
+}
+
+###
+
+GET {{FamilyJournal.Api_HostAddress}}/api/auth/me
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+###
+
+# @name refresh
+POST {{FamilyJournal.Api_HostAddress}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{login.response.body.$.refreshToken}}"
+}
+
+###
+
+# @name createFamily
+POST {{FamilyJournal.Api_HostAddress}}/api/families
+Authorization: Bearer {{login.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "The Smiths"
+}
+
+###
+
+GET {{FamilyJournal.Api_HostAddress}}/api/families/{{createFamily.response.body.$.id}}
+Authorization: Bearer {{login.response.body.$.accessToken}}
 Accept: application/json
+
+###
+
+# --- Inside a family: everything below is /api/families/{familyId}/... ---
+
+@family = {{FamilyJournal.Api_HostAddress}}/api/families/{{createFamily.response.body.$.id}}
+@token = {{login.response.body.$.accessToken}}
+
+# @name addJune
+POST {{family}}/people
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "firstName": "June",
+  "lastName": "Harlow",
+  "maidenName": "Bishop",
+  "gender": "Female",
+  "birthDate": "1934-07-19",
+  "bio": "Pie crust from scratch, always.",
+  "location": "Fort Collins, CO"
+}
+
+###
+
+GET {{family}}/people
+Authorization: Bearer {{token}}
+
+###
+
+# June is Jane's grandmother in this example; link parents with "ParentOf", couples with "SpouseOf"
+POST {{family}}/relationships
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "fromProfileId": "{{addJune.response.body.$.id}}",
+  "toProfileId": "{{createFamily.response.body.$.members[0].profileId}}",
+  "type": "ParentOf"
+}
+
+###
+
+GET {{family}}/tree
+Authorization: Bearer {{token}}
+
+###
+
+# Photos upload as multipart form data with the pixel size; the response has an id to attach to posts
+# @name upload
+POST {{family}}/media
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=photo
+
+--photo
+Content-Disposition: form-data; name="file"; filename="photo.jpg"
+Content-Type: image/jpeg
+
+< ./photo.jpg
+--photo
+Content-Disposition: form-data; name="width"
+
+1200
+--photo
+Content-Disposition: form-data; name="height"
+
+900
+--photo--
+
+###
+
+# @name post
+POST {{family}}/posts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "text": "Pie lesson #1 at Grandma June's.",
+  "taggedProfileIds": ["{{addJune.response.body.$.id}}"],
+  "lifeEvent": { "type": "custom", "label": "Pie lesson", "title": "Grandma June's crust, passed down", "date": "2026-09-21" }
+}
+
+###
+
+GET {{family}}/posts?limit=20
+Authorization: Bearer {{token}}
+
+###
+
+PUT {{family}}/posts/{{post.response.body.$.id}}/reaction
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "emoji": "🥧" }
+
+###
+
+POST {{family}}/posts/{{post.response.body.$.id}}/comments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "text": "Cold butter. Always.", "mentionedProfileIds": [] }
+
+###
+
+# The response's token goes in the invite link; it's only shown once
+# @name invite
+POST {{family}}/invites
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "profileId": "{{addJune.response.body.$.id}}", "email": "june@example.com" }
+
+###
+
+# What June sees when she opens the link, before signing in
+GET {{FamilyJournal.Api_HostAddress}}/api/invites/{{invite.response.body.$.token}}
+
+###
+
+# Run as June (sign her up first, then use her access token): claims the placeholder
+POST {{FamilyJournal.Api_HostAddress}}/api/invites/{{invite.response.body.$.token}}/accept
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{}
+
+###
+
+GET {{family}}/notifications
+Authorization: Bearer {{token}}
+
+###
+
+POST {{family}}/notifications/read
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{}
+
+###
+
+POST {{FamilyJournal.Api_HostAddress}}/api/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refresh.response.body.$.refreshToken}}"
+}
 
 ###

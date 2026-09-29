@@ -4,7 +4,7 @@ namespace FamilyJournalApi.Accessors.Entities;
 
 public class Family : IdGeneratedModel
 {
-    public string Name { get; set; }
+    public string Name { get; set; } = string.Empty;
 
     public DateTimeOffset CreatedAt { get; set; }
 

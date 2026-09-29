@@ -13,6 +13,9 @@ public class Relationship : IdGeneratedModel
 
     public RelationshipType Type { get; set; }
 
+    // Spouses: the wedding date
+    public DateOnly? Since { get; set; }
+
     public Family Family { get; set; } = null!;
 
     public Profile FromProfile { get; set; } = null!;

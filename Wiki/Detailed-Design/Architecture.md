@@ -5,6 +5,7 @@ The API follows **iDesign (The Method)**: components are decomposed by *volatili
 ```mermaid
 flowchart TD
     subgraph CLIENT["🌐 Client Tier"]
+        C0[AuthController]
         C1[FamiliesController]
         C2[ProfilesController]
         C3[PostsController]
@@ -12,6 +13,7 @@ flowchart TD
     end
 
     subgraph MANAGERS["⚙️ Managers — use-case orchestration"]
+        M0[AccountManager]
         M1[FamilyManager]
         M2[ProfileManager]
         M3[PostManager]
@@ -19,10 +21,12 @@ flowchart TD
     end
 
     subgraph ENGINES["🧠 Engines — business computation"]
+        E0[CredentialEngine]
         E1[TreeEngine]
     end
 
     subgraph ACCESSORS["🗄️ Accessors — resource access"]
+        A0[UserAccessor]
         A1[FamilyAccessor]
         A2[ProfileAccessor]
         A3[RelationshipAccessor]
@@ -38,12 +42,15 @@ flowchart TD
 
     BUS{{"MassTransit<br/>(in-memory → broker later)"}}
 
+    C0 --> M0
     C1 --> M1
     C2 --> M2
     C3 --> M3
     C4 --> M4
 
     M2 --> E1
+    M0 --> E0
+    M0 --> A0 & A1
     M1 --> A1 & A2
     M2 --> A2 & A3
     M3 --> A4 & A6
@@ -53,7 +60,7 @@ flowchart TD
     M3 -. publishes .-> BUS
     BUS -. consumes .-> M4
 
-    A1 & A2 & A3 & A4 & A5 --> DB
+    A0 & A1 & A2 & A3 & A4 & A5 --> DB
     A6 --> BLOB
 
     classDef client fill:#1e6fd9,stroke:#0d4ea3,color:#fff
@@ -63,10 +70,10 @@ flowchart TD
     classDef resource fill:#475569,stroke:#1e293b,color:#fff
     classDef bus fill:#dc2626,stroke:#991b1b,color:#fff
 
-    class C1,C2,C3,C4 client
-    class M1,M2,M3,M4 manager
-    class E1 engine
-    class A1,A2,A3,A4,A5,A6 accessor
+    class C0,C1,C2,C3,C4 client
+    class M0,M1,M2,M3,M4 manager
+    class E0,E1 engine
+    class A0,A1,A2,A3,A4,A5,A6 accessor
     class DB,BLOB resource
     class BUS bus
 ```
@@ -95,10 +102,15 @@ Family membership check ("is the caller a member of this family?") is resolved o
 
 | Controller | Endpoints (MVP) |
 |---|---|
-| `FamiliesController` | create family, invite, join/claim, members, roles |
-| `ProfilesController` | CRUD individuals, relationship links, **tree view** |
-| `PostsController` | posts, comments, reactions, feed, photo upload |
-| `NotificationsController` | list, mark read |
+| `AuthController` | register, login, refresh, logout, current account (`/api/auth/me`) |
+| `FamiliesController` / `FamilyController` | create family; then name, member roles, invites (create, list, resend, revoke) |
+| `InviteLinksController` | `/api/invites/{token}`: preview before sign-in, accept (claim a placeholder or start a new profile) |
+| `PeopleController` | people (members and placeholders), relationship links, **tree view** |
+| `PostsController` | feed (paged, filter by person), posts, emoji reactions, comments with @mentions |
+| `MediaController` / `MediaFilesController` | photo upload; photos served by signed URL |
+| `NotificationsController` | list, unread count, mark read |
+
+Everything inside a family lives under `/api/families/{familyId}/…` and inherits `FamilyControllerBase`, whose `[FamilyScoped]` filter runs the membership check before any action.
 
 ---
 
@@ -108,6 +120,7 @@ One manager per **use-case cluster** — not per entity. Managers own the "what 
 
 | Manager | Owns | Notes |
 |---|---|---|
+| `AccountManager` | Registration, sign-in, lockout, refresh-token rotation and reuse detection, sign-out | Accounts are global; a user belongs to a family through their `Profile` in it |
 | `FamilyManager` | Create family, invite links/email, join flow, **placeholder claim**, admin/member roles | The claim flow is the highest-churn workflow — keep it here, fully tested |
 | `ProfileManager` | Individuals, placeholders, life status, relationship links | Calls `TreeEngine` for tree derivation |
 | `PostManager` | Posts, life-event posts, tagging, comments, reactions, feed query | Comments/reactions are part of the posting use case — no separate managers |
@@ -139,14 +152,17 @@ sequenceDiagram
 
 Start with MassTransit's **in-memory transport**; swap to RabbitMQ/Azure Service Bus when mobile push arrives — no manager code changes.
 
+In code: managers publish through `IEventPublisher` (so they never reference MassTransit), and small consumer classes in `Managers/Events` hand each event to `NotificationManager`. MassTransit is pinned to **8.x** — v9 needs a commercial license.
+
 ---
 
 ## 🧠 Engines
 
-Engines encapsulate *business computation* — pure logic, heavily unit tested. Only create one when there's a real algorithm. MVP has **one**:
+Engines encapsulate *business computation* — pure logic, heavily unit tested. Only create one when there's a real algorithm. MVP has **two**:
 
 | Engine | Responsibility |
 |---|---|
+| `CredentialEngine` | Password hashing (ASP.NET Core's PBKDF2 hasher), signing access tokens (JWT, HMAC-SHA256), generating and hashing refresh tokens |
 | `TreeEngine` | Builds tree structure from raw relationship rows, **infers siblings from shared parents**, computes generational layout data for the UI |
 
 > Deliberately empty elsewhere: `AddComment`, `React`, etc. are CRUD — forcing engines there creates pass-through boilerplate. Add engines when logic appears (e.g., a future `FeedEngine` for ranked feeds).
@@ -159,12 +175,28 @@ One accessor per **resource**, exposing atomic *business verbs* — not generic 
 
 | Accessor | Resource | Example verbs |
 |---|---|---|
-| `FamilyAccessor` | Families, memberships, invites | `CreateFamily`, `AddMember`, `GetInviteByToken` |
+| `UserAccessor` | Accounts, refresh tokens | `CreateUser`, `RecordFailedSignIn`, `RotateRefreshToken`, `RevokeRefreshTokenChain` |
+| `FamilyAccessor` | Families, family members, invites | `CreateFamily`, `GetFamiliesForUser`, `AddMember`, `GetInviteByToken` |
 | `ProfileAccessor` | Individuals (real + placeholder) | `CreateProfile`, `ClaimProfile`, `SetLifeStatus` |
 | `RelationshipAccessor` | Relationship edges | `Link(parent/child/spouse)`, `GetFamilyRelationships` |
 | `PostAccessor` | Posts, comments, reactions, tags | `SavePost`, `GetFeedPage`, `AddReaction` |
 | `NotificationAccessor` | Notifications | `CreateBatch`, `GetUnread`, `MarkRead` |
-| `MediaAccessor` | Photo blobs | `Upload`, `GetSignedUrl` — hides blob-storage choice |
+| `MediaAccessor` | Photo blobs | `SaveMedia`, `GetSignedUrl` — hides blob-storage choice (local disk today). Photo URLs are HMAC-signed and expire, so `<img>` tags work without a sign-in header |
+
+---
+
+## 🔐 Authentication
+
+| Piece | How it works |
+|---|---|
+| Accounts | `Users` table: email (unique, case-insensitive), password hash, first/last name. A user joins families through a `Profile` (`Profiles.UserId`), at most one per family |
+| Access token | JWT signed with `Jwt__SigningKey` (from `.env`), 15 minutes, claims `sub` (user id), `email`, `name`. Sent as `Authorization: Bearer …` |
+| Refresh token | 256 random bits, only its SHA-256 hash is stored, 30 days sliding. Rotates on every use; tokens from one sign-in share a `ChainId`, and presenting an already-rotated token revokes the whole chain |
+| Lockout | 5 wrong passwords lock the account for 15 minutes |
+| Rate limits | Per IP: register/login 10 per minute, refresh/logout 60 per minute |
+| Default | Every endpoint requires a signed-in user unless it's marked `[AllowAnonymous]` — the closed garden is on by default |
+
+Family access checks (#20) build on this: the controller reads the user id from the token, and a shared filter resolves whether that user has a profile in the requested family.
 
 ---
 
@@ -184,6 +216,7 @@ src/
   FamilyJournal.Data/           # EF Core DbContext, entities, migrations
 tests/
   FamilyJournal.Tests/          # TreeEngine gets the densest coverage
+                                # today: Backend/FamilyJournalApi.Tests (xUnit, fakes for accessors)
 ```
 
 Everything is registered via DI against `Contracts` interfaces — managers, engines, and accessors are all swappable and mockable.
@@ -194,6 +227,7 @@ Everything is registered via DI against `Contracts` interfaces — managers, eng
 
 | Thing that will change | Hidden behind |
 |---|---|
+| Password hashing and token formats | `CredentialEngine` |
 | Tree layout / sibling-inference algorithm | `TreeEngine` |
 | Invite → claim workflow (highest product churn) | `FamilyManager` |
 | Notification channels (in-app → mobile push) | `NotificationManager` + MassTransit |

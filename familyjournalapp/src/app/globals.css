@@ -1,26 +1,147 @@
 @import "tailwindcss";
 
+/*
+  Photos carry the color. The interface stays black and white, with one
+  signal red for "new" and for the threads that connect people in the tree.
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --canvas: #ffffff;
+  --surface: #ffffff;
+  --sunken: #f3f3f1;
+  --hover: #f6f6f5;
+  --line: #ececea;
+  --line-strong: #d6d6d3;
+  --ink: #111111;
+  --ink-2: #5c5c5a;
+  --ink-3: #93938f;
+  --accent: #111111;
+  --accent-hover: #2b2b2b;
+  --accent-soft: #f3f3f1;
+  --accent-ink: #111111;
+  --signal: #e5484d;
+  --danger: #d93d3d;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --tree-line: #cfcfcb;
+  --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.06), 0 12px 32px rgb(0 0 0 / 0.12);
+
+  /* Initials fallback for people without a photo. */
+  --tone-1: #ecebe7;
+  --tone-2: #ecebe7;
+  --tone-3: #ecebe7;
+  --tone-4: #ecebe7;
+  --tone-5: #ecebe7;
+  --tone-6: #ecebe7;
+  --tone-ink: #5c5c5a;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --canvas: #0c0c0c;
+    --surface: #0c0c0c;
+    --sunken: #1b1b1b;
+    --hover: #161616;
+    --line: #232323;
+    --line-strong: #363636;
+    --ink: #f2f2f0;
+    --ink-2: #a8a8a4;
+    --ink-3: #74746f;
+    --accent: #f2f2f0;
+    --accent-hover: #d9d9d6;
+    --accent-soft: #1b1b1b;
+    --accent-ink: #f2f2f0;
+    --signal: #ff6369;
+
+    --tree-line: #3a3a38;
+    --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.5), 0 12px 32px rgb(0 0 0 / 0.6);
+
+    --tone-1: #222;
+    --tone-2: #222;
+    --tone-3: #222;
+    --tone-4: #222;
+    --tone-5: #222;
+    --tone-6: #222;
+    --tone-ink: #a8a8a4;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-hover: var(--hover);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-signal: var(--signal);
+  --color-danger: var(--danger);
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), "Times New Roman", serif;
+  --shadow-pop: var(--shadow-pop);
+}
+
+/* Base element styles sit in the base layer so utilities like outline-none can override them. */
+@layer base {
+  html {
+    color-scheme: light dark;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--ink);
+    color: var(--canvas);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: default;
+  }
+}
+
+/* Heavy, tight display serif for page titles and names. */
+.display {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* iOS Safari zooms the page when focusing a field under 16px. */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }
