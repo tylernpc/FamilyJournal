@@ -129,6 +129,9 @@ public class NotificationDto
 
     public string? Preview { get; set; }
 
+    // First photo of the post it's about, for a thumbnail; filled in on read
+    public Guid? PostPhotoMediaId { get; set; }
+
     public bool IsRead { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }

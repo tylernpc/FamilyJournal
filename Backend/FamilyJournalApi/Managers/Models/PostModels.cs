@@ -48,7 +48,9 @@ public class LifeEventModel
     [StringLength(80, MinimumLength = 1)]
     public string Title { get; set; } = string.Empty;
 
-    public DateOnly Date { get; set; }
+    // Nullable so a missing date fails validation instead of defaulting to year 1
+    [Required]
+    public DateOnly? Date { get; set; }
 }
 
 public class ReactionModel
@@ -148,6 +150,9 @@ public class NotificationModel
     public string? Emoji { get; set; }
 
     public string? Preview { get; set; }
+
+    // The post's first photo, signed and temporary
+    public string? PostPhotoUrl { get; set; }
 
     public bool IsRead { get; set; }
 

@@ -37,7 +37,7 @@ public class FamilyFixture
         Families = new FamilyManager(familyAccessor, Users, profileAccessor, mediaAccessor, TestCredentials.Engine(Clock), Events, Clock);
         Profiles = new ProfileManager(profileAccessor, new FakeRelationshipAccessor(Db), mediaAccessor, new TreeEngine(), Clock);
         Posts = new PostManager(new FakePostAccessor(Db), profileAccessor, mediaAccessor, Events, Options.Create(new MediaOptions()), Clock);
-        Notifications = new NotificationManager(NotificationStore, familyAccessor);
+        Notifications = new NotificationManager(NotificationStore, familyAccessor, mediaAccessor, Clock);
 
         (FamilyId, Emma) = Db.AddFamily();
     }

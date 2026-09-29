@@ -44,6 +44,11 @@ public class NotificationAccessor(DatabaseContext db) : INotificationAccessor
                 PostId = n.PostId,
                 Emoji = n.Emoji,
                 Preview = n.Preview,
+                PostPhotoMediaId = db.PostPhotos
+                    .Where(p => p.PostId == n.PostId)
+                    .OrderBy(p => p.SortOrder)
+                    .Select(p => (Guid?)p.MediaId)
+                    .FirstOrDefault(),
                 IsRead = n.IsRead,
                 CreatedAt = n.CreatedAt
             })

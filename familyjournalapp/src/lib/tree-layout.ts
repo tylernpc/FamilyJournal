@@ -1,5 +1,4 @@
-import { people } from "./data";
-import { childrenOf, parentsOf, spouseOf } from "./family";
+import type { FamilyGraph } from "./family";
 
 // Derives a generational layout from relationship data alone — nobody places nodes by hand.
 // Each "unit" is a person plus their spouse; children hang off the couple.
@@ -29,24 +28,23 @@ export type TreeLayout = {
   generations: number;
 };
 
-function buildUnit(id: string, seen: Set<string>): Unit {
-  const spouse = spouseOf(id);
+function buildUnit(graph: FamilyGraph, id: string, seen: Set<string>): Unit {
+  const spouse = graph.spouseOf(id);
   const members = spouse && !seen.has(spouse) ? [id, spouse] : [id];
   members.forEach((m) => seen.add(m));
 
   const kids = new Set<string>();
-  for (const m of members) childrenOf(m).forEach((c) => kids.add(c));
+  for (const m of members) graph.childrenOf(m).forEach((c) => kids.add(c));
+  const birthOrder = (child: string) => {
+    const born = graph.findPerson(child)?.birthDate;
+    return born ? new Date(born).getTime() : 0;
+  };
   const ordered = [...kids].sort((a, b) => birthOrder(a) - birthOrder(b));
 
   return {
     members,
-    children: ordered.filter((c) => !seen.has(c)).map((c) => buildUnit(c, seen)),
+    children: ordered.filter((c) => !seen.has(c)).map((c) => buildUnit(graph, c, seen)),
   };
-}
-
-function birthOrder(id: string) {
-  const p = people.find((x) => x.id === id);
-  return p?.birthDate ? new Date(p.birthDate).getTime() : 0;
 }
 
 function unitWidth(u: Unit) {
@@ -62,16 +60,18 @@ function subtreeWidth(u: Unit): number {
   return Math.max(own, kids);
 }
 
-export function layoutTree(): TreeLayout {
+export function layoutTree(graph: FamilyGraph): TreeLayout {
   const seen = new Set<string>();
   const roots: Unit[] = [];
-  for (const p of people) {
+  for (const p of graph.people) {
     if (seen.has(p.id)) continue;
-    const spouse = spouseOf(p.id);
+    const spouse = graph.spouseOf(p.id);
     const isRoot =
-      parentsOf(p.id).length === 0 && (!spouse || parentsOf(spouse).length === 0);
-    if (isRoot) roots.push(buildUnit(p.id, seen));
+      graph.parentsOf(p.id).length === 0 && (!spouse || graph.parentsOf(spouse).length === 0);
+    if (isRoot) roots.push(buildUnit(graph, p.id, seen));
   }
+  // Anyone the walk above didn't reach still gets a place, at the end.
+  for (const p of graph.people) if (!seen.has(p.id)) roots.push(buildUnit(graph, p.id, seen));
 
   const nodes = new Map<string, NodeBox>();
   const connectors: Connector[] = [];

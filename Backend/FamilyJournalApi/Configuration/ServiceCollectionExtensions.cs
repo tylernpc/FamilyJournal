@@ -19,6 +19,14 @@ public static class ServiceCollectionExtensions
             // enums go over the wire as names ("Admin"), not numbers (0)
             .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
+        // The OpenAPI document reads these options rather than the controllers' ones above, so they
+        // repeat the enum names and say numbers are plain numbers (the web app generates its types from it)
+        services.ConfigureHttpJsonOptions(options =>
+        {
+            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+        });
+
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         services.AddOpenApi();
 

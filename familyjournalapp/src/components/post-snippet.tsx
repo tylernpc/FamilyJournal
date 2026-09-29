@@ -1,10 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { getPerson, peopleInPost, relativeTime } from "@/lib/family";
+import { peopleInPost, relativeTime } from "@/lib/family";
+import { useClock, useFamily } from "@/lib/family-context";
+import { lifeEventLabel } from "@/lib/life-events";
 import type { Post } from "@/lib/types";
 import { Avatar } from "./avatar";
-import { lifeEventLabel } from "@/lib/life-events";
 
 // Compact post row for side panels and profile lists.
 export function PostSnippet({
@@ -18,10 +19,12 @@ export function PostSnippet({
   onHover?: (hovering: boolean) => void;
   onClick?: () => void;
 }) {
+  const { graph } = useFamily();
+  const { now, timeZone } = useClock();
   const involved = peopleInPost(post);
-  const author = getPerson(post.authorId);
+  const author = graph.getPerson(post.authorId);
   const meta = post.lifeEvent && { label: lifeEventLabel(post.lifeEvent) };
-  const thumb = post.photos?.[0];
+  const thumb = post.photos[0];
 
   return (
     <button
@@ -42,7 +45,7 @@ export function PostSnippet({
             ))}
           </span>
           <span className="truncate text-[12px] text-ink-3">
-            {author.firstName} · {relativeTime(post.createdAt)}
+            {author.firstName} · {relativeTime(post.createdAt, now, timeZone)}
           </span>
         </div>
         {meta && (
@@ -58,10 +61,9 @@ export function PostSnippet({
       {thumb && (
         <Image
           src={thumb.src}
-          unoptimized={thumb.src.startsWith("blob:")}
           alt=""
-          width={112}
-          height={112}
+          width={56}
+          height={56}
           className="mt-0.5 h-14 w-14 shrink-0 rounded-lg object-cover"
         />
       )}

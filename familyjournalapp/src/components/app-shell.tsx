@@ -2,44 +2,48 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CURRENT_USER_ID } from "@/lib/data";
-import { useStore } from "@/lib/store";
+import { useComposer } from "@/lib/composer";
+import { shortFamilyName } from "@/lib/family";
+import { useFamily } from "@/lib/family-context";
 import { Avatar } from "./avatar";
 import { ComposerHost } from "./composer";
 import { BellIcon, HomeIcon, PeopleIcon, PlusIcon, TreeIcon } from "./icons";
 
 const NAV = [
-  { href: "/", label: "Home", icon: HomeIcon },
-  { href: "/tree", label: "Tree", icon: TreeIcon },
-  { href: "/people", label: "People", icon: PeopleIcon },
+  { path: "", label: "Home", icon: HomeIcon },
+  { path: "/tree", label: "Tree", icon: TreeIcon },
+  { path: "/people", label: "People", icon: PeopleIcon },
 ];
-
-function isActive(pathname: string, href: string) {
-  if (href === "/") return pathname === "/";
-  if (href === "/people") return pathname === "/people" || (pathname.startsWith("/people/") && !pathname.endsWith(`/${CURRENT_USER_ID}`));
-  return pathname.startsWith(href);
-}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { unreadCount, openComposer } = useStore();
-  const onMe = pathname === `/people/${CURRENT_USER_ID}`;
+  const { family, me, unreadCount, href } = useFamily();
+  const { openComposer } = useComposer();
+  const mine = href(`/people/${me}`);
+  const onMe = pathname === mine || pathname === href("/settings");
+
+  const isActive = (path: string) => {
+    const target = href(path);
+    if (path === "") return pathname === target || pathname.startsWith(href("/posts"));
+    if (path === "/people") return pathname.startsWith(target) && !onMe;
+    return pathname.startsWith(target);
+  };
 
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-30 border-b border-line bg-canvas/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-6 px-4 lg:h-16 lg:px-6">
-          <Link href="/" className="display text-[26px] lg:text-[28px]">
-            Harlow
+          <Link href={href()} className="display truncate text-[26px] lg:text-[28px]">
+            {shortFamilyName(family.name)}
           </Link>
 
           <nav className="hidden items-center gap-1 lg:flex" aria-label="Main">
-            {NAV.map(({ href, label }) => {
-              const active = isActive(pathname, href);
+            {NAV.map(({ path, label }) => {
+              const active = isActive(path);
               return (
                 <Link
-                  key={href}
-                  href={href}
+                  key={path}
+                  href={href(path)}
                   aria-current={active ? "page" : undefined}
                   className={`rounded-full px-3.5 py-1.5 text-[15px] ${
                     active ? "bg-sunken font-semibold text-ink" : "text-ink-2 hover:text-ink"
@@ -60,7 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               New post
             </button>
             <Link
-              href="/notifications"
+              href={href("/notifications")}
               aria-label={`Notifications${unreadCount ? `, ${unreadCount} new` : ""}`}
               className="relative flex h-10 w-10 items-center justify-center rounded-full hover:bg-hover"
             >
@@ -70,11 +74,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               )}
             </Link>
             <Link
-              href={`/people/${CURRENT_USER_ID}`}
+              href={mine}
               aria-label="Your profile"
               className={`hidden rounded-full lg:block ${onMe ? "ring-2 ring-ink ring-offset-2 ring-offset-canvas" : ""}`}
             >
-              <Avatar personId={CURRENT_USER_ID} size={32} />
+              <Avatar personId={me} size={32} />
             </Link>
           </div>
         </div>
@@ -89,7 +93,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         aria-label="Main"
       >
         {NAV.slice(0, 2).map((item) => (
-          <TabLink key={item.href} {...item} active={isActive(pathname, item.href)} />
+          <TabLink key={item.path} {...item} href={href(item.path)} active={isActive(item.path)} />
         ))}
         <button
           onClick={() => openComposer()}
@@ -100,14 +104,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <PlusIcon size={22} strokeWidth={2} />
           </span>
         </button>
-        <TabLink {...NAV[2]} active={isActive(pathname, "/people")} />
-        <Link
-          href={`/people/${CURRENT_USER_ID}`}
-          aria-label="Your profile"
-          className="flex h-14 items-center justify-center"
-        >
+        <TabLink {...NAV[2]} href={href(NAV[2].path)} active={isActive("/people")} />
+        <Link href={mine} aria-label="Your profile" className="flex h-14 items-center justify-center">
           <span className={`rounded-full ${onMe ? "ring-2 ring-ink ring-offset-2 ring-offset-canvas" : ""}`}>
-            <Avatar personId={CURRENT_USER_ID} size={26} />
+            <Avatar personId={me} size={26} />
           </span>
         </Link>
       </nav>

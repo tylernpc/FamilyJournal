@@ -12,7 +12,9 @@ namespace FamilyJournalApi.Managers;
 /// </summary>
 public class NotificationManager(
     INotificationAccessor notificationAccessor,
-    IFamilyAccessor familyAccessor) : INotificationManager
+    IFamilyAccessor familyAccessor,
+    IMediaAccessor mediaAccessor,
+    TimeProvider timeProvider) : INotificationManager
 {
     public const int MaxPage = 50;
 
@@ -20,6 +22,7 @@ public class NotificationManager(
     {
         limit = Math.Clamp(limit, 1, MaxPage);
         var notifications = await notificationAccessor.GetNotifications(caller.ProfileId, before, limit);
+        var now = timeProvider.GetUtcNow();
 
         return new NotificationPageModel
         {
@@ -32,6 +35,7 @@ public class NotificationManager(
                     PostId = n.PostId,
                     Emoji = n.Emoji,
                     Preview = n.Preview,
+                    PostPhotoUrl = n.PostPhotoMediaId is { } mediaId ? mediaAccessor.GetSignedUrl(mediaId, now) : null,
                     IsRead = n.IsRead,
                     CreatedAt = n.CreatedAt
                 })

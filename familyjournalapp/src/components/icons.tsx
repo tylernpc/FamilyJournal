@@ -252,3 +252,23 @@ export const SmilePlusIcon = (p: IconProps) => (
     <path d="M15.5 1.75v4.5M13.25 4h4.5" />
   </Icon>
 );
+
+export const PencilIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12.8 3.7 16.3 7.2 7.2 16.3H3.7v-3.5z" />
+    <path d="M11 5.5 14.5 9" />
+  </Icon>
+);
+
+export const TrashIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3.5 5.5h13M8 5.5V3.5h4v2M5 5.5l.8 11h8.4l.8-11" />
+  </Icon>
+);
+
+export const GearIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="10" cy="10" r="2.5" />
+    <path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4" />
+  </Icon>
+);

@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Newsreader } from "next/font/google";
-import { AppShell } from "@/components/app-shell";
-import { StoreProvider } from "@/lib/store";
 import "./globals.css";
 
 const newsreader = Newsreader({
@@ -13,11 +11,8 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "Harlow Family · Family Journal",
-    template: "%s · Harlow Family",
-  },
-  description: "A private journal and family tree for the Harlow family.",
+  title: { default: "Family Journal", template: "%s · Family Journal" },
+  description: "A private journal and family tree, just for your family.",
 };
 
 export const viewport: Viewport = {
@@ -37,11 +32,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={newsreader.variable}>
-      <body>
-        <StoreProvider>
-          <AppShell>{children}</AppShell>
-        </StoreProvider>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
