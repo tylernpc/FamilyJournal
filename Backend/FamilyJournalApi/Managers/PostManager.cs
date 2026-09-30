@@ -232,8 +232,13 @@ public class PostManager(
         return Done.Value;
     }
 
-    public async Task<Result<MediaModel>> UploadPhoto(FamilyCaller caller, Stream content, long length, int width, int height)
+    public async Task<Result<MediaModel>> UploadPhoto(FamilyCaller caller, Stream content, long length, int width, int height, PhotoCrops? crops)
     {
+        if (crops?.Problem() is { } cropProblem)
+        {
+            return Result<MediaModel>.Invalid(cropProblem);
+        }
+
         if (length <= 0)
         {
             return Result<MediaModel>.Invalid("The file is empty.");
@@ -261,17 +266,52 @@ public class PostManager(
 
         content.Position = 0;
         var now = timeProvider.GetUtcNow();
-        var media = await mediaAccessor.SaveMedia(caller.FamilyId, caller.ProfileId, content, contentType, width, height, now);
+        var media = await mediaAccessor.SaveMedia(caller.FamilyId, caller.ProfileId, content, contentType, width, height, crops, now);
 
-        return new MediaModel
-        {
-            Id = media.Id,
-            Url = mediaAccessor.GetSignedUrl(media.Id, now),
-            ContentType = media.ContentType,
-            Width = media.Width,
-            Height = media.Height
-        };
+        return ToModel(media, now);
     }
+
+    public async Task<Result<MediaModel>> SetCrops(FamilyCaller caller, Guid mediaId, PhotoCrops? crops)
+    {
+        var media = await mediaAccessor.GetMedia(mediaId);
+
+        if (media is null || media.FamilyId != caller.FamilyId)
+        {
+            return Result<MediaModel>.NotFound("That photo isn't in this family.");
+        }
+
+        if (crops?.Problem() is { } problem)
+        {
+            return Result<MediaModel>.Invalid(problem);
+        }
+
+        var now = timeProvider.GetUtcNow();
+
+        if (media.UploadedByProfileId != caller.ProfileId && !caller.IsAdmin)
+        {
+            var profile = await profileAccessor.GetProfileWithPhoto(caller.FamilyId, mediaId, now);
+
+            if (profile is null || !ProfileManager.CanEdit(caller, profile))
+            {
+                return Result<MediaModel>.Forbidden("Only whoever added this photo, or an admin, can reframe it.");
+            }
+        }
+
+        await mediaAccessor.SetCrops(mediaId, crops);
+        media.Crops = crops is null || crops.IsEmpty ? null : crops;
+
+        return ToModel(media, now);
+    }
+
+    private MediaModel ToModel(MediaDto media, DateTimeOffset now) => new()
+    {
+        Id = media.Id,
+        Url = mediaAccessor.GetSignedUrl(media.Id, now),
+        ContentType = media.ContentType,
+        Width = media.Width,
+        Height = media.Height,
+        Crops = media.Crops
+    };
 
     public async Task<PhotoFile?> OpenPhoto(Guid mediaId, long expiresAtUnix, string signature)
     {
@@ -389,7 +429,8 @@ public class PostManager(
                 Url = mediaAccessor.GetSignedUrl(p.MediaId, now),
                 Width = p.Width,
                 Height = p.Height,
-                AltText = p.AltText
+                AltText = p.AltText,
+                Crops = p.Crops
             })
             .ToList(),
         TaggedProfileIds = post.TaggedProfileIds,

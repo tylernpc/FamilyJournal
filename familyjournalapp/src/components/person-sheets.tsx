@@ -1,7 +1,5 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element -- previews are local object URLs */
-
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
@@ -10,14 +8,17 @@ import {
   deletePerson,
   removeRelationship,
   savePerson,
+  setPhotoCrops,
   type NewLink,
   type PersonDraft,
 } from "@/app/f/[familyId]/actions";
 import { age, fullName } from "@/lib/family";
 import { useClock, useFamily } from "@/lib/family-context";
-import type { MemberRole, Person } from "@/lib/types";
+import type { MemberRole, Person, Photo, PhotoCrops } from "@/lib/types";
+import { cropFor } from "@/lib/photo";
 import { readPhoto, uploadPhoto } from "@/lib/upload";
 import { Avatar } from "./avatar";
+import { CroppedImage, ProfilePhotoCropper } from "./crop-sheet";
 import { inputClass } from "./form";
 import { CheckIcon, ChevronRightIcon, CloseIcon, LinkIcon, SearchIcon } from "./icons";
 import { ConfirmSheet, Sheet, SheetHeader } from "./sheet";
@@ -63,7 +64,8 @@ export function PersonSheet({
     location: person?.location ?? "",
     photoMediaId: person?.photo?.mediaId ?? null,
   });
-  const [photoSrc, setPhotoSrc] = useState(person?.photo?.src);
+  // The picture as it will be once saved: the whole photo plus how it's framed
+  const [photo, setPhoto] = useState<Photo | undefined>(person?.photo);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string>();
   const [saving, startSaving] = useTransition();
@@ -81,21 +83,57 @@ export function PersonSheet({
       ? `Add ${graph.getPerson(link.to).firstName}'s ${RELATION_LABEL[link.as]}`
       : "Add someone";
 
+  // A new photo (with its file) or the current one, while it's being cropped
+  const [cropping, setCropping] = useState<{ photo: Photo; file?: File; step?: "circle" | "portrait" }>();
+
   const pickPhoto = async (file: File) => {
     setError(undefined);
-    setUploading(true);
     try {
-      const preview = await readPhoto(file);
-      setPhotoSrc(preview.src);
-      const stored = await uploadPhoto(family.id, file, preview);
-      set("photoMediaId", stored.mediaId!);
+      setCropping({ photo: await readPhoto(file), file });
     } catch (e) {
       setError((e as Error).message);
-      setPhotoSrc(person?.photo?.src);
+    }
+  };
+
+  const applyCrops = async (crops: PhotoCrops) => {
+    const { photo: picked, file } = cropping!;
+    setCropping(undefined);
+    setError(undefined);
+    const before = photo;
+    // Show the new framing straight away
+    setPhoto({ ...picked, crops });
+    setUploading(true);
+    try {
+      if (file) {
+        // The whole photo goes up once, with its crops
+        const stored = await uploadPhoto(family.id, file, picked, crops);
+        setPhoto({ ...stored, src: picked.src });
+        set("photoMediaId", stored.mediaId!);
+      } else {
+        // Already stored: only the framing changes. Refresh the page if it's the saved picture.
+        const saved = picked.mediaId === person?.photo?.mediaId;
+        const result = await setPhotoCrops(family.id, picked.mediaId!, crops, saved);
+        if (!result.ok) throw new Error(result.error);
+      }
+    } catch (e) {
+      setError((e as Error).message);
+      setPhoto(before);
     } finally {
       setUploading(false);
     }
   };
+
+  if (cropping) {
+    return (
+      <ProfilePhotoCropper
+        src={cropping.photo.src}
+        initial={cropping.photo.crops}
+        initialStep={cropping.step}
+        onCancel={() => setCropping(undefined)}
+        onDone={applyCrops}
+      />
+    );
+  }
 
   const save = () =>
     startSaving(async () => {
@@ -146,19 +184,50 @@ export function PersonSheet({
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-6 pt-4">
         <ErrorNote>{error}</ErrorNote>
 
-        <div className="flex items-center gap-4">
-          <span className="relative block aspect-[10/13] w-[88px] shrink-0 overflow-hidden rounded-[4px] bg-sunken">
-            {photoSrc ? (
-              <img src={photoSrc} alt="" className={`h-full w-full object-cover ${uploading ? "opacity-50" : ""}`} />
-            ) : (
-              <span className="display flex h-full items-center justify-center text-[32px] text-ink-3">
-                {draft.firstName[0] ?? "?"}
-              </span>
-            )}
-          </span>
+        <div className="flex items-center gap-5 pb-2">
+          {photo ? (
+            // Both ways the photo shows: the tree card, with the profile circle tucked on its corner.
+            // Tapping either opens the cropper on that shape.
+            <span className={`relative block w-[88px] shrink-0 ${uploading ? "opacity-50" : ""}`}>
+              <button
+                type="button"
+                disabled={!photo.mediaId || uploading}
+                onClick={() => setCropping({ photo, step: "portrait" })}
+                aria-label="Crop tree card"
+                className="block aspect-[10/13] w-full overflow-hidden rounded-[4px] bg-sunken"
+              >
+                <CroppedImage
+                  src={photo.src}
+                  rect={cropFor(photo, "portrait")}
+                  width={photo.width}
+                  height={photo.height}
+                  className="h-full w-full"
+                />
+              </button>
+              <button
+                type="button"
+                disabled={!photo.mediaId || uploading}
+                onClick={() => setCropping({ photo, step: "circle" })}
+                aria-label="Crop profile circle"
+                className="absolute -bottom-2 -right-3 block h-11 w-11 overflow-hidden rounded-full ring-[3px] ring-surface"
+              >
+                <CroppedImage
+                  src={photo.src}
+                  rect={cropFor(photo, "avatar")}
+                  width={photo.width}
+                  height={photo.height}
+                  className="h-full w-full"
+                />
+              </button>
+            </span>
+          ) : (
+            <span className="display flex aspect-[10/13] w-[88px] shrink-0 items-center justify-center rounded-[4px] bg-sunken text-[32px] text-ink-3">
+              {draft.firstName[0] ?? "?"}
+            </span>
+          )}
           <div className="space-y-1.5">
             <label className="inline-flex h-9 cursor-pointer items-center rounded-full border border-ink px-4 text-[14px] font-semibold hover:bg-hover">
-              {uploading ? "Uploading…" : photoSrc ? "Change photo" : "Add photo"}
+              {uploading ? "Saving…" : photo ? "Change photo" : "Add photo"}
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif"
@@ -170,16 +239,23 @@ export function PersonSheet({
                 }}
               />
             </label>
-            {photoSrc && !uploading && (
-              <button
-                onClick={() => {
-                  setPhotoSrc(undefined);
-                  set("photoMediaId", null);
-                }}
-                className="block text-[13px] text-ink-3 hover:text-ink"
-              >
-                Remove photo
-              </button>
+            {photo && !uploading && (
+              <div className="flex gap-3 text-[13px] text-ink-3">
+                {photo.mediaId && (
+                  <button onClick={() => setCropping({ photo })} className="hover:text-ink">
+                    Crop
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setPhoto(undefined);
+                    set("photoMediaId", null);
+                  }}
+                  className="hover:text-ink"
+                >
+                  Remove photo
+                </button>
+              </div>
             )}
           </div>
         </div>

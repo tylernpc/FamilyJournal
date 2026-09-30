@@ -51,11 +51,18 @@ public class FamilyFixture
 
     public ProfileDto Placeholder(string name, Guid? addedBy = null) => Db.AddProfile(FamilyId, name, addedBy: addedBy ?? Emma.Id);
 
-    // An uploaded photo, in this family unless another is given
-    public Guid Photo(Guid? familyId = null)
+    // An uploaded photo, in this family and from Emma unless told otherwise
+    public Guid Photo(Guid? familyId = null, Guid? uploadedBy = null)
     {
         var id = Guid.NewGuid();
-        Db.Media[id] = new MediaDto { Id = id, FamilyId = familyId ?? FamilyId, Width = 1200, Height = 900 };
+        Db.Media[id] = new MediaDto
+        {
+            Id = id,
+            FamilyId = familyId ?? FamilyId,
+            UploadedByProfileId = uploadedBy ?? Emma.Id,
+            Width = 1200,
+            Height = 900
+        };
         return id;
     }
 }

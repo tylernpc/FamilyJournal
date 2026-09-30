@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { fullName } from "@/lib/family";
 import { useFamily } from "@/lib/family-context";
+import { frame } from "@/lib/photo";
 
 // Same portrait treatment as the tree: the photo is the card, name underneath.
 export function PortraitCard({
@@ -24,7 +25,7 @@ export function PortraitCard({
       <span className="relative block aspect-[10/13] overflow-hidden rounded-[4px] bg-sunken">
         {person.photo ? (
           <Image
-            src={person.photo.src}
+            src={frame(person.photo, "portrait").src}
             alt={fullName(person)}
             width={width}
             height={height}

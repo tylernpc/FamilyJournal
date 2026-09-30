@@ -820,6 +820,8 @@ export interface paths {
                     } & {
                         /** Format: int32 */
                         height?: number;
+                    } & {
+                        crops?: string;
                     };
                 };
             };
@@ -848,6 +850,85 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/families/{familyId}/media/{mediaId}/crops": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    mediaId: string;
+                    familyId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SetCropsRequest"];
+                    "text/json": components["schemas"]["SetCropsRequest"];
+                    "application/*+json": components["schemas"]["SetCropsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MediaModel"];
+                        "application/json": components["schemas"]["MediaModel"];
+                        "text/json": components["schemas"]["MediaModel"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1902,6 +1983,16 @@ export interface components {
             profileId: null | string;
             role: components["schemas"]["MemberRole"];
         };
+        CropRect: {
+            /** Format: double */
+            x: number;
+            /** Format: double */
+            y: number;
+            /** Format: double */
+            width: number;
+            /** Format: double */
+            height: number;
+        };
         FamilyMemberModel: {
             /** Format: uuid */
             profileId: string;
@@ -1935,7 +2026,7 @@ export interface components {
             lastName: string;
             /** Format: int32 */
             birthYear: null | number;
-            photoUrl: null | string;
+            photo: null | components["schemas"]["PhotoModel"];
         };
         InviteLinkModel: {
             invite: components["schemas"]["InviteModel"];
@@ -1985,6 +2076,7 @@ export interface components {
             width: number;
             /** Format: int32 */
             height: number;
+            crops: null | components["schemas"]["PhotoCrops"];
         };
         /** @enum {unknown} */
         MemberRole: "Admin" | "Member";
@@ -2054,6 +2146,11 @@ export interface components {
             /** Format: uuid */
             photoMediaId?: null | string;
         };
+        PhotoCrops: {
+            post: null | components["schemas"]["CropRect"];
+            portrait: null | components["schemas"]["CropRect"];
+            avatar: null | components["schemas"]["CropRect"];
+        };
         PhotoModel: {
             /** Format: uuid */
             mediaId: string;
@@ -2063,6 +2160,7 @@ export interface components {
             /** Format: int32 */
             height: number;
             altText: null | string;
+            crops: null | components["schemas"]["PhotoCrops"];
         };
         PostModel: {
             /** Format: uuid */
@@ -2135,6 +2233,9 @@ export interface components {
         RelationshipType: "ParentOf" | "SpouseOf";
         RenameFamilyRequest: {
             name: string;
+        };
+        SetCropsRequest: {
+            crops: null | components["schemas"]["PhotoCrops"];
         };
         SetRoleRequest: {
             role: components["schemas"]["MemberRole"];

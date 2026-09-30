@@ -14,6 +14,7 @@ import {
   sharedPosts,
 } from "@/lib/family";
 import { useClock, useFamily } from "@/lib/family-context";
+import { frame } from "@/lib/photo";
 import { NODE_H, NODE_W, PHOTO_H, layoutTree, type NodeBox, type TreeLayout } from "@/lib/tree-layout";
 import type { Post } from "@/lib/types";
 import { Avatar } from "./avatar";
@@ -546,7 +547,7 @@ function Canvas({
                 >
                   {p.photo ? (
                     <Image
-                      src={p.photo.src}
+                      src={frame(p.photo, "portrait").src}
                       alt={fullName(p)}
                       width={NODE_W}
                       height={PHOTO_H}

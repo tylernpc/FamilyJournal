@@ -7,6 +7,7 @@ import { useComposer } from "@/lib/composer";
 import { age, companions, fullName, lifespan, longDate, type FamilyGraph } from "@/lib/family";
 import { useClock, useFamily } from "@/lib/family-context";
 import { lifeEventLabel } from "@/lib/life-events";
+import { frame } from "@/lib/photo";
 import type { LifeEventType, Person, Post } from "@/lib/types";
 import { Avatar } from "./avatar";
 import { CakeIcon, GearIcon, MailIcon, PeopleIcon, PinIcon, PlusIcon } from "./icons";
@@ -271,7 +272,7 @@ function Moments({
   return (
     <div className="grid grid-cols-3 gap-0.5 pt-0.5">
       {posts.map((post) => {
-        const photo = post.photos[0] ?? graph.eventCover(post);
+        const photo = post.photos[0] ? frame(post.photos[0], "post") : graph.eventCover(post);
         return (
           <button
             key={post.id}

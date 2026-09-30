@@ -7,6 +7,7 @@ import { loadPosts } from "@/app/f/[familyId]/actions";
 import { useComposer } from "@/lib/composer";
 import { isRecent, localDate, peopleInPost } from "@/lib/family";
 import { useClock, useFamily } from "@/lib/family-context";
+import { frame } from "@/lib/photo";
 import type { FeedPage, Post } from "@/lib/types";
 import { useServerState } from "@/lib/use-server-state";
 import { CloseIcon, PlusIcon } from "./icons";
@@ -172,7 +173,7 @@ function WeekStrip({ posts, selected }: { posts: Post[]; selected?: string }) {
             } ${selected && !active ? "opacity-50" : ""}`}
           >
             {person.photo ? (
-              <Image src={person.photo.src} alt="" width={96} height={132} className="h-full w-full object-cover" />
+              <Image src={frame(person.photo, "portrait").src} alt="" width={96} height={132} className="h-full w-full object-cover" />
             ) : (
               <span className="display flex h-full items-center justify-center pb-5 text-[36px] text-ink-3">
                 {person.firstName[0]}

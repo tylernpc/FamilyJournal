@@ -109,7 +109,7 @@ public class InviteeProfileModel
 
     public int? BirthYear { get; set; }
 
-    public string? PhotoUrl { get; set; }
+    public PhotoModel? Photo { get; set; }
 }
 
 public class AcceptInviteRequest

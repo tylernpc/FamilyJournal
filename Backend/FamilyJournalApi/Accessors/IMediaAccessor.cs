@@ -1,4 +1,5 @@
 using FamilyJournalApi.Accessors.DTOs;
+using FamilyJournalApi.Common;
 
 namespace FamilyJournalApi.Accessors;
 
@@ -8,7 +9,12 @@ namespace FamilyJournalApi.Accessors;
 /// </summary>
 public interface IMediaAccessor
 {
-    Task<MediaDto> SaveMedia(Guid familyId, Guid uploadedByProfileId, Stream content, string contentType, int width, int height, DateTimeOffset createdAt);
+    Task<MediaDto> SaveMedia(Guid familyId, Guid uploadedByProfileId, Stream content, string contentType, int width, int height, PhotoCrops? crops, DateTimeOffset createdAt);
+
+    /// <summary>
+    /// Replaces how the photo is framed; the stored photo itself never changes.
+    /// </summary>
+    Task SetCrops(Guid mediaId, PhotoCrops? crops);
 
     Task<MediaDto?> GetMedia(Guid mediaId);
 

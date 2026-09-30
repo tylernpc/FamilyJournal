@@ -1,5 +1,6 @@
 using FamilyJournalApi.Accessors.DTOs;
 using FamilyJournalApi.Accessors.Entities;
+using FamilyJournalApi.Common;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -218,7 +219,8 @@ public class PostAccessor(DatabaseContext db) : IPostAccessor
                         MediaId = ph.MediaId,
                         Width = ph.Media.Width,
                         Height = ph.Media.Height,
-                        AltText = ph.AltText
+                        AltText = ph.AltText,
+                        Crops = PhotoCrops.Parse(ph.Media.Crops)
                     })
                     .ToList(),
                 TaggedProfileIds = p.Tags.Select(t => t.ProfileId).ToList(),

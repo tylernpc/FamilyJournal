@@ -1,3 +1,4 @@
+using FamilyJournalApi.Common;
 using FamilyJournalApi.Common.Enum;
 
 namespace FamilyJournalApi.Accessors.DTOs;
@@ -45,6 +46,8 @@ public class PostPhotoDto
     public int Height { get; set; }
 
     public string? AltText { get; set; }
+
+    public PhotoCrops? Crops { get; set; }
 }
 
 /// <summary>
@@ -109,6 +112,8 @@ public class MediaDto
     public int Height { get; set; }
 
     public string StorageKey { get; set; } = string.Empty;
+
+    public PhotoCrops? Crops { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
 }

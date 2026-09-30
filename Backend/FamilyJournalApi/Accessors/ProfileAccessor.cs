@@ -1,5 +1,6 @@
 using FamilyJournalApi.Accessors.DTOs;
 using FamilyJournalApi.Accessors.Entities;
+using FamilyJournalApi.Common;
 using Microsoft.EntityFrameworkCore;
 
 namespace FamilyJournalApi.Accessors;
@@ -18,6 +19,11 @@ public class ProfileAccessor(DatabaseContext db) : IProfileAccessor
     public async Task<ProfileDto?> GetProfile(Guid familyId, Guid profileId, DateTimeOffset now)
     {
         return await Profiles(familyId, now).SingleOrDefaultAsync(p => p.Id == profileId);
+    }
+
+    public async Task<ProfileDto?> GetProfileWithPhoto(Guid familyId, Guid mediaId, DateTimeOffset now)
+    {
+        return await Profiles(familyId, now).FirstOrDefaultAsync(p => p.PhotoMediaId == mediaId);
     }
 
     public async Task<HashSet<Guid>> FindProfilesInFamily(Guid familyId, IEnumerable<Guid> profileIds)
@@ -96,6 +102,9 @@ public class ProfileAccessor(DatabaseContext db) : IProfileAccessor
                 Bio = p.Bio,
                 Location = p.Location,
                 PhotoMediaId = p.PhotoMediaId,
+                PhotoWidth = p.PhotoMedia != null ? p.PhotoMedia.Width : 0,
+                PhotoHeight = p.PhotoMedia != null ? p.PhotoMedia.Height : 0,
+                PhotoCrops = p.PhotoMedia != null ? PhotoCrops.Parse(p.PhotoMedia.Crops) : null,
                 AddedByProfileId = p.AddedByProfileId,
                 CreatedAt = p.CreatedAt,
                 Role = db.FamilyMembers

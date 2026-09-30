@@ -249,7 +249,14 @@ public class ProfileManager(
         Bio = profile.Bio,
         Location = profile.Location,
         Photo = profile.PhotoMediaId is { } mediaId
-            ? new PhotoModel { MediaId = mediaId, Url = mediaAccessor.GetSignedUrl(mediaId, now) }
+            ? new PhotoModel
+            {
+                MediaId = mediaId,
+                Url = mediaAccessor.GetSignedUrl(mediaId, now),
+                Width = profile.PhotoWidth,
+                Height = profile.PhotoHeight,
+                Crops = profile.PhotoCrops
+            }
             : null,
         IsPlaceholder = profile.IsPlaceholder,
         Role = profile.Role,

@@ -1,6 +1,7 @@
 "use client";
 
-import type { Photo } from "./types";
+import { toCrops } from "./api/map";
+import type { Photo, PhotoCrops } from "./types";
 
 // A picked file as a local preview, with the pixel size the API asks for.
 export function readPhoto(file: File): Promise<Photo> {
@@ -13,12 +14,14 @@ export function readPhoto(file: File): Promise<Photo> {
   });
 }
 
-// Uploads to the family's photos; the result's mediaId can go on a post or a profile.
-export async function uploadPhoto(familyId: string, file: File, preview: Photo): Promise<Photo> {
+// Uploads the whole photo to the family, with how to frame it if already known.
+// The result's mediaId can go on a post or a profile.
+export async function uploadPhoto(familyId: string, file: File, preview: Photo, crops?: PhotoCrops): Promise<Photo> {
   const form = new FormData();
   form.append("file", file);
   form.append("width", String(preview.width));
   form.append("height", String(preview.height));
+  if (crops) form.append("crops", JSON.stringify(crops));
 
   const response = await fetch(`/bff/families/${familyId}/media`, { method: "POST", body: form }).catch(
     () => null,
@@ -28,5 +31,5 @@ export async function uploadPhoto(familyId: string, file: File, preview: Photo):
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.title ?? "Couldn't upload that photo.");
 
-  return { mediaId: body.id, src: body.url, alt: "", width: body.width, height: body.height };
+  return { mediaId: body.id, src: body.url, alt: "", width: body.width, height: body.height, crops: toCrops(body.crops) };
 }

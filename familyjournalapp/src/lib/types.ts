@@ -7,13 +7,23 @@ export type MemberRole = "admin" | "member";
 
 export type Gender = "unspecified" | "female" | "male" | "nonBinary";
 
+// A rectangle inside a photo, as fractions (0 to 1) of its width and height.
+export type CropRect = { x: number; y: number; width: number; height: number };
+
+// How each place frames a photo. The stored photo stays whole; missing crops show all of it.
+export type PhotoCrops = { post?: CropRect; portrait?: CropRect; avatar?: CropRect };
+
+export type CropName = keyof PhotoCrops;
+
 export type Photo = {
   // Set for photos stored by the API; absent for local previews that haven't uploaded yet.
   mediaId?: string;
   src: string;
   alt: string;
+  // Of the whole photo
   width: number;
   height: number;
+  crops?: PhotoCrops;
 };
 
 export type Person = {

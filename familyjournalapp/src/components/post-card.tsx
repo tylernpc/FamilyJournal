@@ -8,6 +8,7 @@ import { useComposer } from "@/lib/composer";
 import { fullName, lifespan, longDate, mentionedIds, relativeTime } from "@/lib/family";
 import { useClock, useFamily } from "@/lib/family-context";
 import { lifeEventLabel } from "@/lib/life-events";
+import { frame } from "@/lib/photo";
 import type { Comment, Photo, Post, Reaction } from "@/lib/types";
 import { useDismiss } from "@/lib/use-dismiss";
 import { useServerState } from "@/lib/use-server-state";
@@ -90,7 +91,7 @@ export function PostCard({ post, full = false }: { post: Post; full?: boolean })
   const total = post.commentCount + comments.length - post.comments.length;
   const hidden = total - comments.length;
   const cover = graph.eventCover(post);
-  const photos = post.photos.length ? post.photos : cover ? [cover] : [];
+  const photos = post.photos.length ? post.photos.map((p) => frame(p, "post")) : cover ? [cover] : [];
   const eventLine = useEventLine(post);
 
   const onReact = (emoji: string | null) => {
@@ -309,7 +310,17 @@ function PostMenu({ post, leavingPage }: { post: Post; leavingPage: boolean }) {
   );
 }
 
-function PostPhoto({ photo, className, sizes }: { photo: Photo; className: string; sizes: string }) {
+function PostPhoto({
+  photo,
+  className,
+  sizes,
+  style,
+}: {
+  photo: Photo;
+  className: string;
+  sizes: string;
+  style?: React.CSSProperties;
+}) {
   return (
     <Image
       src={photo.src}
@@ -319,6 +330,7 @@ function PostPhoto({ photo, className, sizes }: { photo: Photo; className: strin
       sizes={sizes}
       unoptimized={photo.src.startsWith("blob:")}
       draggable={false}
+      style={style}
       className={`bg-sunken object-cover ${className}`}
     />
   );
@@ -336,14 +348,16 @@ function EventOverlay({ post, eventLine }: { post: Post; eventLine: string }) {
 function Media({ post, photos, eventLine }: { post: Post; photos: Photo[]; eventLine: string }) {
   if (photos.length === 1) {
     const [photo] = photos;
-    const tall = photo.height > photo.width;
+    // Shown in the shape it was cropped to, kept between tall portrait (4:5) and wide landscape (1.91:1)
+    const ratio = Math.min(1.91, Math.max(0.8, photo.width / photo.height));
     return (
       <div className="px-4 pt-3">
         <div className="relative overflow-hidden rounded-[14px]">
           <PostPhoto
             photo={photo}
             sizes="(min-width: 640px) 568px, 100vw"
-            className={`w-full ${tall ? "aspect-[4/5]" : "aspect-[4/3]"}`}
+            className="w-full"
+            style={{ aspectRatio: ratio }}
           />
           {post.lifeEvent && <EventOverlay post={post} eventLine={eventLine} />}
         </div>

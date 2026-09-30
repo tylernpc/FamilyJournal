@@ -11,7 +11,8 @@ const nextConfig: NextConfig = {
   },
   images: {
     // Resized per screen by next/image. The API checks each signature, so only signed URLs load.
-    localPatterns: [{ pathname: "/api/media/**" }],
+    // /img/media serves crops of them (src/app/img).
+    localPatterns: [{ pathname: "/api/media/**" }, { pathname: "/img/media/**" }],
   },
 };
 

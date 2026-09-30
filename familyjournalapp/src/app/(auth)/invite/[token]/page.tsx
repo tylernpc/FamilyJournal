@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { toPhoto } from "@/lib/api/map";
+import { frame } from "@/lib/photo";
 import { ApiError, api, unwrap } from "@/lib/server/api";
 import { ACCESS_COOKIE } from "@/lib/server/session-cookies";
 import { JoinForm } from "./join-form";
@@ -30,12 +32,13 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const signedIn = (await cookies()).has(ACCESS_COOKIE);
   const here = `/invite/${encodeURIComponent(token)}`;
   const profile = preview.profile;
+  const portrait = profile?.photo && frame(toPhoto(profile.photo), "portrait");
 
   return (
     <>
-      {profile?.photoUrl && (
+      {portrait && (
         <Image
-          src={profile.photoUrl}
+          src={portrait.src}
           alt=""
           width={120}
           height={156}

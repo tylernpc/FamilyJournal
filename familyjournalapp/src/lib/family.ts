@@ -1,3 +1,4 @@
+import { frame } from "./photo";
 import type { Person, Photo, Post, Relationship } from "./types";
 
 export const fullName = (p: Person) => `${p.firstName} ${p.lastName}`.trim();
@@ -157,8 +158,9 @@ export function createGraph(people: Person[], relationships: Relationship[]) {
   // they use the portrait of the person the event is about.
   function eventCover(post: Post): Photo | undefined {
     if (!post.lifeEvent) return undefined;
-    if (post.photos.length) return post.photos[0];
-    return getPerson(post.tagged[0] ?? post.authorId).photo;
+    if (post.photos.length) return frame(post.photos[0], "post");
+    const portrait = getPerson(post.tagged[0] ?? post.authorId).photo;
+    return portrait && frame(portrait, "portrait");
   }
 
   return {

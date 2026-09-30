@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FamilyJournalApi.Common;
 using FamilyJournalApi.Common.Enum;
 
 namespace FamilyJournalApi.Managers.Models;
@@ -135,6 +136,14 @@ public class MediaModel
     public int Width { get; set; }
 
     public int Height { get; set; }
+
+    public PhotoCrops? Crops { get; set; }
+}
+
+public class SetCropsRequest
+{
+    // Leave out (or send no rectangles) to show the whole photo everywhere
+    public PhotoCrops? Crops { get; set; }
 }
 
 public class NotificationModel

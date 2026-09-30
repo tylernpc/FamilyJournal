@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { toComment, toFeedPage, toPerson, toReactions } from "@/lib/api/map";
 import type { components } from "@/lib/api/schema";
 import { ApiError, api, attempt, isGuid, unwrap } from "@/lib/server/api";
-import type { LifeEvent, MemberRole, RelationshipType } from "@/lib/types";
+import type { LifeEvent, MemberRole, PhotoCrops, RelationshipType } from "@/lib/types";
 
 // Everything here is callable by anyone who can reach the server, so ids are checked for shape and the
 // API decides what the signed-in person may do. Actions that change what the layout shows (people,
@@ -138,6 +138,30 @@ export async function deleteComment(familyId: string, postId: string, commentId:
     );
   });
   if (result.ok) refresh();
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Photos
+
+// Reframes a stored photo: the photo itself doesn't change, only how each place crops it.
+export async function setPhotoCrops(familyId: string, mediaId: string, crops: PhotoCrops | null, refreshPage = true) {
+  const result = await attempt(async () => {
+    ids(familyId, mediaId);
+    await unwrap(
+      api.PUT("/api/families/{familyId}/media/{mediaId}/crops", {
+        params: { path: { familyId, mediaId } },
+        body: {
+          crops: crops && {
+            post: crops.post ?? null,
+            portrait: crops.portrait ?? null,
+            avatar: crops.avatar ?? null,
+          },
+        },
+      }),
+    );
+  });
+  if (result.ok && refreshPage) refresh();
   return result;
 }
 

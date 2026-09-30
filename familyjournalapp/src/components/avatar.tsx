@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { fullName, initials } from "@/lib/family";
+import { frame } from "@/lib/photo";
 import { useFamily } from "@/lib/family-context";
 
 const TONES = 6;
@@ -33,7 +34,7 @@ export function Avatar({
     >
       {person.photo ? (
         <Image
-          src={person.photo.src}
+          src={frame(person.photo, "avatar").src}
           alt={fullName(person)}
           width={size}
           height={size}

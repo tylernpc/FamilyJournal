@@ -37,6 +37,7 @@ The family is in the URL so a link sent to a relative always opens the right fam
 - **The family layout** loads the people, relationships and unread count once, and provides them to every page below it (`useFamily()`). Kinship, the tree layout and name lookups all work from that.
 - **Writes** are server actions (`src/app/f/[familyId]/actions.ts`). Ones that change what the layout shows call `refresh()`, so the page re-renders with the change in the same round trip. Reactions and comments update the post in place instead.
 - **Photos** upload through `/bff/families/{familyId}/media`, which streams to the API (server actions cap bodies at 1 MB). They're served at the API's signed URLs, which `next.config.ts` rewrites to the API so the API needn't be public, and `next/image` resizes them for each screen.
+- **Crops** are numbers, not files. The whole photo is uploaded once, and `Media.Crops` (JSON) holds up to three rectangles, as fractions of the photo: `post`, `avatar` (circles) and `portrait` (tree and people cards). Profile photos are cropped circle first; the portrait is optional and, until someone sets it, is framed around the circle (`portraitAround`). `frame()` in `src/lib/photo.ts` picks the right one for each place and points at `/img/media/{id}?…&c=x,y,w,h`, where `sharp` cuts it out; `next/image` then resizes and caches it. Re-cropping only updates the numbers (`PUT …/media/{id}/crops`), so nothing is uploaded again.
 
 ## Running it
 

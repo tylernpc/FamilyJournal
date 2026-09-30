@@ -181,7 +181,7 @@ One accessor per **resource**, exposing atomic *business verbs* — not generic 
 | `RelationshipAccessor` | Relationship edges | `Link(parent/child/spouse)`, `GetFamilyRelationships` |
 | `PostAccessor` | Posts, comments, reactions, tags | `SavePost`, `GetFeedPage`, `AddReaction` |
 | `NotificationAccessor` | Notifications | `CreateBatch`, `GetUnread`, `MarkRead` |
-| `MediaAccessor` | Photo blobs | `SaveMedia`, `GetSignedUrl` — hides blob-storage choice (local disk today). Photo URLs are HMAC-signed and expire, so `<img>` tags work without a sign-in header |
+| `MediaAccessor` | Photo blobs | `SaveMedia`, `SetCrops`, `GetSignedUrl` — hides blob-storage choice (local disk today). Photos are stored whole; crops are JSON on the row. Photo URLs are HMAC-signed and expire, so `<img>` tags work without a sign-in header |
 
 ---
 

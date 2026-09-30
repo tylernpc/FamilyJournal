@@ -1,5 +1,6 @@
 using FamilyJournalApi.Accessors;
 using FamilyJournalApi.Accessors.DTOs;
+using FamilyJournalApi.Common;
 using FamilyJournalApi.Common.Enum;
 using FamilyJournalApi.Managers.Events;
 
@@ -15,6 +16,12 @@ public class FakeProfileAccessor(FakeDatabase db) : IProfileAccessor
 
     public Task<ProfileDto?> GetProfile(Guid familyId, Guid profileId, DateTimeOffset now) =>
         Task.FromResult(db.View(familyId, profileId, now));
+
+    public Task<ProfileDto?> GetProfileWithPhoto(Guid familyId, Guid mediaId, DateTimeOffset now) =>
+        Task.FromResult(db.Profiles.Values
+            .Where(p => p.FamilyId == familyId && p.PhotoMediaId == mediaId)
+            .Select(p => db.View(familyId, p.Id, now))
+            .FirstOrDefault());
 
     public Task<HashSet<Guid>> FindProfilesInFamily(Guid familyId, IEnumerable<Guid> profileIds) =>
         Task.FromResult(profileIds
@@ -97,7 +104,7 @@ public class FakeRelationshipAccessor(FakeDatabase db) : IRelationshipAccessor
 
 public class FakeMediaAccessor(FakeDatabase db) : IMediaAccessor
 {
-    public Task<MediaDto> SaveMedia(Guid familyId, Guid uploadedByProfileId, Stream content, string contentType, int width, int height, DateTimeOffset createdAt)
+    public Task<MediaDto> SaveMedia(Guid familyId, Guid uploadedByProfileId, Stream content, string contentType, int width, int height, PhotoCrops? crops, DateTimeOffset createdAt)
     {
         var media = new MediaDto
         {
@@ -109,6 +116,7 @@ public class FakeMediaAccessor(FakeDatabase db) : IMediaAccessor
             Width = width,
             Height = height,
             StorageKey = "fake",
+            Crops = crops,
             CreatedAt = createdAt
         };
 
@@ -123,6 +131,12 @@ public class FakeMediaAccessor(FakeDatabase db) : IMediaAccessor
             .Where(id => db.Media.TryGetValue(id, out var m) && m.FamilyId == familyId)
             .Select(id => db.Media[id])
             .ToList());
+
+    public Task SetCrops(Guid mediaId, PhotoCrops? crops)
+    {
+        db.Media[mediaId].Crops = crops is null || crops.IsEmpty ? null : crops;
+        return Task.CompletedTask;
+    }
 
     public Stream OpenRead(string storageKey) => new MemoryStream();
 

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { peopleInPost, relativeTime } from "@/lib/family";
 import { useClock, useFamily } from "@/lib/family-context";
 import { lifeEventLabel } from "@/lib/life-events";
+import { frame } from "@/lib/photo";
 import type { Post } from "@/lib/types";
 import { Avatar } from "./avatar";
 
@@ -24,7 +25,7 @@ export function PostSnippet({
   const involved = peopleInPost(post);
   const author = graph.getPerson(post.authorId);
   const meta = post.lifeEvent && { label: lifeEventLabel(post.lifeEvent) };
-  const thumb = post.photos[0];
+  const thumb = post.photos[0] && frame(post.photos[0], "post");
 
   return (
     <button

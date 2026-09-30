@@ -90,6 +90,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Everything except static files and photos (photos are signed URLs and need no sign-in).
-  matcher: ["/((?!_next/static|_next/image|api/media|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  // Everything except static files and photos (photos and their crops are signed URLs and need no sign-in).
+  matcher: ["/((?!_next/static|_next/image|api/media|img/media|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };

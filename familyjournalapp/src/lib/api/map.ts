@@ -11,6 +11,7 @@ import type {
   NotificationType,
   Person,
   Photo,
+  PhotoCrops,
   Post,
   Relationship,
 } from "../types";
@@ -27,6 +28,11 @@ export const toRole = (role: S["MemberRole"]): MemberRole => lowerFirst(role);
 
 export const toGender = (gender: S["Gender"]): Gender => lowerFirst(gender);
 
+export function toCrops(crops: S["PhotoCrops"] | null): PhotoCrops | undefined {
+  if (!crops) return undefined;
+  return { post: opt(crops.post), portrait: opt(crops.portrait), avatar: opt(crops.avatar) };
+}
+
 export function toPhoto(photo: S["PhotoModel"], alt = ""): Photo {
   return {
     mediaId: photo.mediaId,
@@ -34,6 +40,7 @@ export function toPhoto(photo: S["PhotoModel"], alt = ""): Photo {
     alt: photo.altText ?? alt,
     width: photo.width,
     height: photo.height,
+    crops: toCrops(photo.crops),
   };
 }
 

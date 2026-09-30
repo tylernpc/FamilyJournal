@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element -- previews are local object URLs */
 
 import { useState, useTransition } from "react";
-import { createPost, updatePost } from "@/app/f/[familyId]/actions";
+import { createPost, setPhotoCrops, updatePost } from "@/app/f/[familyId]/actions";
 import { useComposer } from "@/lib/composer";
 import { fullName, localDate } from "@/lib/family";
 import { useClock, useFamily } from "@/lib/family-context";
@@ -13,9 +13,11 @@ import {
   lifeEventLabel,
   type LifeEventType,
 } from "@/lib/life-events";
-import type { LifeEvent, Photo, Post } from "@/lib/types";
+import { frame, isWhole } from "@/lib/photo";
+import type { CropRect, LifeEvent, Photo, Post } from "@/lib/types";
 import { readPhoto, uploadPhoto } from "@/lib/upload";
 import { Avatar } from "./avatar";
+import { CroppedImage, CropSheet, POST_SHAPES } from "./crop-sheet";
 import { CheckIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon, PlusIcon, SearchIcon } from "./icons";
 import { MentionInput } from "./mention-input";
 import { Sheet, SheetHeader } from "./sheet";
@@ -23,7 +25,23 @@ import { Sheet, SheetHeader } from "./sheet";
 type Step = "write" | "tag" | "eventType" | "eventDetails";
 
 // A photo on the post: already stored (mediaId set), or uploading in the background while you write.
-type Attachment = { key: string; preview: Photo; mediaId?: string; error?: string };
+// The whole photo is uploaded once; cropping only changes preview.crops, which is saved on Share.
+type Attachment = {
+  key: string;
+  preview: Photo;
+  mediaId?: string;
+  error?: string;
+  // Which shape they cropped to, to reopen the crop sheet on it
+  shape?: string;
+  cropChanged?: boolean;
+};
+
+// The crop shape a stored crop matches, so reopening it starts on the right one
+function shapeOf(rect: CropRect | undefined, photo: Photo) {
+  if (!rect || !photo.width || !photo.height) return undefined;
+  const ratio = (rect.width * photo.width) / (rect.height * photo.height);
+  return POST_SHAPES.find((s) => s.ratio && Math.abs(s.ratio - ratio) / s.ratio < 0.02)?.label ?? "Original";
+}
 
 // Mounted once in the app shell; opened through useComposer().
 export function ComposerHost() {
@@ -45,6 +63,7 @@ function Composer({ initialTags, editing }: { initialTags: string[]; editing?: P
   const [event, setEvent] = useState<LifeEvent | null>(editing?.lifeEvent ?? null);
   const [error, setError] = useState<string>();
   const [sharing, startSharing] = useTransition();
+  const [cropping, setCropping] = useState<string | null>(null);
 
   const uploading = photos.some((p) => !p.mediaId && !p.error);
   const eventReady = !event || (event.title.trim() && (event.type !== "custom" || event.label?.trim()));
@@ -63,11 +82,23 @@ function Composer({ initialTags, editing }: { initialTags: string[]; editing?: P
         continue;
       }
       setPhotos((all) => [...all, { key, preview }]);
+      const settle = (change: Partial<Attachment>) =>
+        setPhotos((all) => all.map((p) => (p.key === key ? { ...p, ...change } : p)));
       uploadPhoto(family.id, file, preview).then(
-        (stored) => setPhotos((all) => all.map((p) => (p.key === key ? { ...p, mediaId: stored.mediaId } : p))),
-        (e: Error) => setPhotos((all) => all.map((p) => (p.key === key ? { ...p, error: e.message } : p))),
+        (stored) => settle({ mediaId: stored.mediaId }),
+        (e: Error) => settle({ error: e.message }),
       );
     }
+  };
+
+  const applyCrop = (key: string, rect: CropRect, shape: string) => {
+    setCropping(null);
+    const post = shape === "Original" && isWhole(rect) ? undefined : rect;
+    setPhotos((all) =>
+      all.map((p) =>
+        p.key === key ? { ...p, shape, cropChanged: true, preview: { ...p.preview, crops: { ...p.preview.crops, post } } } : p,
+      ),
+    );
   };
 
   const submit = () => {
@@ -79,6 +110,11 @@ function Composer({ initialTags, editing }: { initialTags: string[]; editing?: P
     }
     setError(undefined);
     startSharing(async () => {
+      // Save new framing first; the photos themselves are already uploaded
+      for (const p of photos.filter((p) => p.cropChanged)) {
+        const saved = await setPhotoCrops(family.id, p.mediaId!, p.preview.crops ?? null, false);
+        if (!saved.ok) return setError(saved.error);
+      }
       const draft = {
         text: text.trim(),
         tagged,
@@ -92,6 +128,20 @@ function Composer({ initialTags, editing }: { initialTags: string[]; editing?: P
       closeComposer();
     });
   };
+
+  const croppingPhoto = photos.find((p) => p.key === cropping);
+  if (croppingPhoto) {
+    return (
+      <CropSheet
+        src={croppingPhoto.preview.src}
+        shapes={POST_SHAPES}
+        initial={croppingPhoto.preview.crops?.post}
+        initialShape={croppingPhoto.shape ?? shapeOf(croppingPhoto.preview.crops?.post, croppingPhoto.preview)}
+        onCancel={() => setCropping(null)}
+        onDone={(rect, shape) => applyCrop(croppingPhoto.key, rect, shape)}
+      />
+    );
+  }
 
   if (step === "tag") {
     return (
@@ -233,16 +283,18 @@ function Composer({ initialTags, editing }: { initialTags: string[]; editing?: P
         <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
           {photos.map((p) => (
             <div key={p.key} className="relative h-28 w-24 shrink-0 overflow-hidden rounded-xl bg-sunken">
-              <img
-                src={p.preview.src}
-                alt=""
-                className={`h-full w-full object-cover ${p.mediaId ? "" : "opacity-50"}`}
-              />
-              {!p.mediaId && (
+              <button onClick={() => setCropping(p.key)} aria-label="Crop photo" className="block h-full w-full">
+                <CroppedImage
+                  src={p.preview.src}
+                  rect={p.preview.crops?.post}
+                  width={p.preview.width}
+                  height={p.preview.height}
+                  className={`h-full w-full ${p.mediaId ? "" : "opacity-50"}`}
+                />
                 <span className="absolute inset-x-1.5 bottom-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-center text-[11px] font-medium text-white">
-                  {p.error ? "Didn't upload" : "Uploading…"}
+                  {p.error ? "Didn't upload" : p.mediaId ? "Crop" : "Uploading…"}
                 </span>
-              )}
+              </button>
               <button
                 onClick={() => setPhotos(photos.filter((x) => x.key !== p.key))}
                 aria-label="Remove photo"
@@ -320,7 +372,7 @@ function EventPreview({
   subjectId: string;
 }) {
   const { graph } = useFamily();
-  const src = photo?.src ?? graph.getPerson(subjectId).photo?.src;
+  const portrait = graph.getPerson(subjectId).photo;
   const date = new Date(`${event.date}T00:00:00Z`).toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
@@ -330,7 +382,17 @@ function EventPreview({
 
   return (
     <div className="relative aspect-[4/3] overflow-hidden rounded-[14px] bg-ink">
-      {src && <img src={src} alt="" className="h-full w-full object-cover" />}
+      {photo ? (
+        <CroppedImage
+          src={photo.src}
+          rect={photo.crops?.post}
+          width={photo.width}
+          height={photo.height}
+          className="h-full w-full"
+        />
+      ) : (
+        portrait && <img src={frame(portrait, "portrait").src} alt="" className="h-full w-full object-cover" />
+      )}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent px-5 pb-5 pt-20 text-white">
         <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-white/80">
           {lifeEventLabel(event)} · {date}
