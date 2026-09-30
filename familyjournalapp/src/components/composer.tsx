@@ -2,59 +2,146 @@
 
 /* eslint-disable @next/next/no-img-element -- previews are local object URLs */
 
-import { useState } from "react";
-import { CURRENT_USER_ID, NOW, people } from "@/lib/data";
-import { fullName, getPerson, photoUrl } from "@/lib/family";
+import { useState, useTransition } from "react";
+import { createPost, setPhotoCrops, updatePost } from "@/app/f/[familyId]/actions";
+import { useComposer } from "@/lib/composer";
+import { fullName, localDate } from "@/lib/family";
+import { useClock, useFamily } from "@/lib/family-context";
 import {
   LIFE_EVENT_GROUPS,
   lifeEventHint,
   lifeEventLabel,
   type LifeEventType,
 } from "@/lib/life-events";
-import { useStore } from "@/lib/store";
-import type { LifeEvent, Photo } from "@/lib/types";
+import { frame, isWhole } from "@/lib/photo";
+import type { CropRect, LifeEvent, Photo, Post } from "@/lib/types";
+import { readPhoto, uploadPhoto } from "@/lib/upload";
 import { Avatar } from "./avatar";
+import { CroppedImage, CropSheet, POST_SHAPES } from "./crop-sheet";
 import { CheckIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon, PlusIcon, SearchIcon } from "./icons";
 import { MentionInput } from "./mention-input";
 import { Sheet, SheetHeader } from "./sheet";
 
 type Step = "write" | "tag" | "eventType" | "eventDetails";
 
-// Mounted once in the app shell; opened through the store.
+// A photo on the post: already stored (mediaId set), or uploading in the background while you write.
+// The whole photo is uploaded once; cropping only changes preview.crops, which is saved on Share.
+type Attachment = {
+  key: string;
+  preview: Photo;
+  mediaId?: string;
+  error?: string;
+  // Which shape they cropped to, to reopen the crop sheet on it
+  shape?: string;
+  cropChanged?: boolean;
+};
+
+// The crop shape a stored crop matches, so reopening it starts on the right one
+function shapeOf(rect: CropRect | undefined, photo: Photo) {
+  if (!rect || !photo.width || !photo.height) return undefined;
+  const ratio = (rect.width * photo.width) / (rect.height * photo.height);
+  return POST_SHAPES.find((s) => s.ratio && Math.abs(s.ratio - ratio) / s.ratio < 0.02)?.label ?? "Original";
+}
+
+// Mounted once in the app shell; opened through useComposer().
 export function ComposerHost() {
-  const { composer } = useStore();
+  const { composer } = useComposer();
   if (!composer) return null;
-  return <Composer initialTags={composer.tags} />;
+  return <Composer initialTags={composer.tags} editing={composer.editing} />;
 }
 
-function readPhoto(file: File): Promise<Photo> {
-  const src = URL.createObjectURL(file);
-  return new Promise((resolve) => {
-    const img = new window.Image();
-    img.onload = () =>
-      resolve({ src, alt: file.name, width: img.naturalWidth, height: img.naturalHeight });
-    img.src = src;
-  });
-}
-
-const today = () => NOW.toISOString().slice(0, 10);
-
-function Composer({ initialTags }: { initialTags: string[] }) {
-  const { addPost, closeComposer } = useStore();
+function Composer({ initialTags, editing }: { initialTags: string[]; editing?: Post }) {
+  const { family, me } = useFamily();
+  const { now, timeZone } = useClock();
+  const { closeComposer } = useComposer();
   const [step, setStep] = useState<Step>("write");
-  const [text, setText] = useState("");
-  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [text, setText] = useState(editing?.text ?? "");
+  const [photos, setPhotos] = useState<Attachment[]>(
+    editing?.photos.map((p) => ({ key: p.mediaId ?? p.src, preview: p, mediaId: p.mediaId })) ?? [],
+  );
   const [tagged, setTagged] = useState<string[]>(initialTags);
-  const [event, setEvent] = useState<LifeEvent | null>(null);
+  const [event, setEvent] = useState<LifeEvent | null>(editing?.lifeEvent ?? null);
+  const [error, setError] = useState<string>();
+  const [sharing, startSharing] = useTransition();
+  const [cropping, setCropping] = useState<string | null>(null);
 
+  const uploading = photos.some((p) => !p.mediaId && !p.error);
   const eventReady = !event || (event.title.trim() && (event.type !== "custom" || event.label?.trim()));
-  const canPost = (text.trim().length > 0 || photos.length > 0 || !!event) && eventReady;
+  const hasContent = text.trim().length > 0 || photos.length > 0 || !!event;
+  const canPost = hasContent && eventReady && !uploading && !sharing;
+  const cover = photos.find((p) => !p.error)?.preview;
+
+  const addFiles = async (files: File[]) => {
+    for (const file of files) {
+      const key = `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`;
+      let preview: Photo;
+      try {
+        preview = await readPhoto(file);
+      } catch (e) {
+        setError((e as Error).message);
+        continue;
+      }
+      setPhotos((all) => [...all, { key, preview }]);
+      const settle = (change: Partial<Attachment>) =>
+        setPhotos((all) => all.map((p) => (p.key === key ? { ...p, ...change } : p)));
+      uploadPhoto(family.id, file, preview).then(
+        (stored) => settle({ mediaId: stored.mediaId }),
+        (e: Error) => settle({ error: e.message }),
+      );
+    }
+  };
+
+  const applyCrop = (key: string, rect: CropRect, shape: string) => {
+    setCropping(null);
+    const post = shape === "Original" && isWhole(rect) ? undefined : rect;
+    setPhotos((all) =>
+      all.map((p) =>
+        p.key === key ? { ...p, shape, cropChanged: true, preview: { ...p.preview, crops: { ...p.preview.crops, post } } } : p,
+      ),
+    );
+  };
 
   const submit = () => {
     if (!canPost) return;
-    addPost({ text: text.trim(), tagged, photos, lifeEvent: event ?? undefined });
-    closeComposer();
+    const failed = photos.filter((p) => p.error);
+    if (failed.length) {
+      setError("Remove the photos that didn't upload, then share.");
+      return;
+    }
+    setError(undefined);
+    startSharing(async () => {
+      // Save new framing first; the photos themselves are already uploaded
+      for (const p of photos.filter((p) => p.cropChanged)) {
+        const saved = await setPhotoCrops(family.id, p.mediaId!, p.preview.crops ?? null, false);
+        if (!saved.ok) return setError(saved.error);
+      }
+      const draft = {
+        text: text.trim(),
+        tagged,
+        photos: photos.map((p) => ({ mediaId: p.mediaId!, alt: p.preview.alt })),
+        lifeEvent: event ? { ...event, title: event.title.trim(), label: event.label?.trim() } : undefined,
+      };
+      const result = editing
+        ? await updatePost(family.id, editing.id, draft)
+        : await createPost(family.id, draft);
+      if (!result.ok) return setError(result.error);
+      closeComposer();
+    });
   };
+
+  const croppingPhoto = photos.find((p) => p.key === cropping);
+  if (croppingPhoto) {
+    return (
+      <CropSheet
+        src={croppingPhoto.preview.src}
+        shapes={POST_SHAPES}
+        initial={croppingPhoto.preview.crops?.post}
+        initialShape={croppingPhoto.shape ?? shapeOf(croppingPhoto.preview.crops?.post, croppingPhoto.preview)}
+        onCancel={() => setCropping(null)}
+        onDone={(rect, shape) => applyCrop(croppingPhoto.key, rect, shape)}
+      />
+    );
+  }
 
   if (step === "tag") {
     return (
@@ -80,7 +167,7 @@ function Composer({ initialTags }: { initialTags: string[] }) {
               type,
               label: type === "custom" ? (label ?? current?.label) : undefined,
               title: current?.title ?? "",
-              date: current?.date ?? today(),
+              date: current?.date ?? localDate(now, timeZone),
             }));
             setStep("eventDetails");
           }}
@@ -107,7 +194,7 @@ function Composer({ initialTags }: { initialTags: string[] }) {
           }
         />
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-4">
-          <EventPreview event={event} photo={photos[0]} subjectId={tagged[0] ?? CURRENT_USER_ID} />
+          <EventPreview event={event} photo={cover} subjectId={tagged[0] ?? me} />
           <div className="mt-4 space-y-3">
             {event.type === "custom" && (
               <Field label="What kind of event?">
@@ -139,13 +226,7 @@ function Composer({ initialTags }: { initialTags: string[] }) {
                 className="h-11 w-full rounded-lg bg-sunken px-3.5 text-[15px] text-ink outline-none"
               />
             </Field>
-            {!photos.length && (
-              <p className="text-[13px] text-ink-3">
-                No photo yet, so we&apos;ll use{" "}
-                {tagged[0] ? `${getPerson(tagged[0]).firstName}'s` : "your"} profile photo. Add one to
-                the post to use it instead.
-              </p>
-            )}
+            {!photos.length && <NoPhotoHint subjectId={tagged[0]} />}
             <button
               onClick={() => setStep("write")}
               disabled={!eventReady}
@@ -160,9 +241,9 @@ function Composer({ initialTags }: { initialTags: string[] }) {
   }
 
   return (
-    <Sheet label="New post" onClose={closeComposer} wide>
+    <Sheet label={editing ? "Edit post" : "New post"} onClose={closeComposer} wide>
       <SheetHeader
-        title="New post"
+        title={editing ? "Edit post" : "New post"}
         left={<TextButton onClick={closeComposer}>Cancel</TextButton>}
         right={
           <button
@@ -170,20 +251,22 @@ function Composer({ initialTags }: { initialTags: string[] }) {
             disabled={!canPost}
             className="h-8 rounded-full bg-ink px-4 text-[14px] font-semibold text-canvas disabled:opacity-25"
           >
-            Share
+            {sharing ? "Saving…" : uploading ? "Uploading…" : editing ? "Save" : "Share"}
           </button>
         }
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto">
+        {error && <p className="mx-4 mt-3 rounded-lg bg-sunken px-3.5 py-2.5 text-[14px] text-danger">{error}</p>}
+
         {event && (
           <button onClick={() => setStep("eventDetails")} className="block w-full px-4 pt-4 text-left">
-            <EventPreview event={event} photo={photos[0]} subjectId={tagged[0] ?? CURRENT_USER_ID} />
+            <EventPreview event={event} photo={cover} subjectId={tagged[0] ?? me} />
           </button>
         )}
 
         <div className="flex gap-3 px-4 pt-4">
-          <Avatar personId={CURRENT_USER_ID} size={36} />
+          <Avatar personId={me} size={36} />
           <div className="min-w-0 flex-1 pt-1.5">
             <MentionInput
               value={text}
@@ -198,12 +281,24 @@ function Composer({ initialTags }: { initialTags: string[] }) {
         </div>
 
         <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
-          {photos.map((p, i) => (
-            <div key={p.src} className="relative h-28 w-24 shrink-0 overflow-hidden rounded-xl bg-sunken">
-              <img src={p.src} alt="" className="h-full w-full object-cover" />
+          {photos.map((p) => (
+            <div key={p.key} className="relative h-28 w-24 shrink-0 overflow-hidden rounded-xl bg-sunken">
+              <button onClick={() => setCropping(p.key)} aria-label="Crop photo" className="block h-full w-full">
+                <CroppedImage
+                  src={p.preview.src}
+                  rect={p.preview.crops?.post}
+                  width={p.preview.width}
+                  height={p.preview.height}
+                  className={`h-full w-full ${p.mediaId ? "" : "opacity-50"}`}
+                />
+                <span className="absolute inset-x-1.5 bottom-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-center text-[11px] font-medium text-white">
+                  {p.error ? "Didn't upload" : p.mediaId ? "Crop" : "Uploading…"}
+                </span>
+              </button>
               <button
-                onClick={() => setPhotos(photos.filter((_, j) => j !== i))}
+                onClick={() => setPhotos(photos.filter((x) => x.key !== p.key))}
                 aria-label="Remove photo"
+                title={p.error}
                 className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white"
               >
                 <CloseIcon size={14} strokeWidth={2} />
@@ -215,13 +310,11 @@ function Composer({ initialTags }: { initialTags: string[] }) {
             Photos
             <input
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif"
               multiple
               className="sr-only"
-              onChange={async (e) => {
-                const files = [...(e.target.files ?? [])];
-                const added = await Promise.all(files.map(readPhoto));
-                setPhotos((all) => [...all, ...added]);
+              onChange={(e) => {
+                addFiles([...(e.target.files ?? [])]);
                 e.target.value = "";
               }}
             />
@@ -230,26 +323,41 @@ function Composer({ initialTags }: { initialTags: string[] }) {
 
         <ul className="mt-3 border-t border-line">
           <Row label="Tag family" onClick={() => setStep("tag")}>
-            {tagged.length > 0 ? (
-              <span className="flex items-center gap-2">
-                <span className="flex -space-x-2">
-                  {tagged.slice(0, 4).map((id) => (
-                    <Avatar key={id} personId={id} size={24} className="ring-2 ring-surface" />
-                  ))}
-                </span>
-                {tagged.length === 1 ? getPerson(tagged[0]).firstName : `${tagged.length} people`}
-              </span>
-            ) : (
-              "None"
-            )}
+            <TaggedSummary tagged={tagged} />
           </Row>
           <Row label="Life event" onClick={() => setStep(event ? "eventDetails" : "eventType")}>
             {event ? lifeEventLabel(event) : "None"}
           </Row>
         </ul>
-        <p className="px-4 py-3 text-[12px] text-ink-3">Only the Harlow family can see this.</p>
+        <p className="px-4 py-3 text-[12px] text-ink-3">Only people in {family.name} can see this.</p>
       </div>
     </Sheet>
+  );
+}
+
+function TaggedSummary({ tagged }: { tagged: string[] }) {
+  const { graph } = useFamily();
+  if (!tagged.length) return <>None</>;
+  return (
+    <span className="flex items-center gap-2">
+      <span className="flex -space-x-2">
+        {tagged.slice(0, 4).map((id) => (
+          <Avatar key={id} personId={id} size={24} className="ring-2 ring-surface" />
+        ))}
+      </span>
+      {tagged.length === 1 ? graph.getPerson(tagged[0]).firstName : `${tagged.length} people`}
+    </span>
+  );
+}
+
+function NoPhotoHint({ subjectId }: { subjectId?: string }) {
+  const { graph } = useFamily();
+  const subject = graph.findPerson(subjectId);
+  return (
+    <p className="text-[13px] text-ink-3">
+      No photo yet, so we&apos;ll use {subject ? `${subject.firstName}'s` : "your"} profile photo. Add one to
+      the post to use it instead.
+    </p>
   );
 }
 
@@ -263,7 +371,8 @@ function EventPreview({
   photo?: Photo;
   subjectId: string;
 }) {
-  const src = photo?.src ?? photoUrl(getPerson(subjectId), 600, 450);
+  const { graph } = useFamily();
+  const portrait = graph.getPerson(subjectId).photo;
   const date = new Date(`${event.date}T00:00:00Z`).toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
@@ -273,7 +382,17 @@ function EventPreview({
 
   return (
     <div className="relative aspect-[4/3] overflow-hidden rounded-[14px] bg-ink">
-      {src && <img src={src} alt="" className="h-full w-full object-cover" />}
+      {photo ? (
+        <CroppedImage
+          src={photo.src}
+          rect={photo.crops?.post}
+          width={photo.width}
+          height={photo.height}
+          className="h-full w-full"
+        />
+      ) : (
+        portrait && <img src={frame(portrait, "portrait").src} alt="" className="h-full w-full object-cover" />
+      )}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent px-5 pb-5 pt-20 text-white">
         <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-white/80">
           {lifeEventLabel(event)} · {date}
@@ -404,16 +523,18 @@ function BackButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function TagList({
+// Everyone but you, with a search box.
+export function TagList({
   selected,
   onChange,
 }: {
   selected: string[];
   onChange: (ids: string[]) => void;
 }) {
+  const { people, me } = useFamily();
   const [query, setQuery] = useState("");
   const list = people.filter(
-    (p) => p.id !== CURRENT_USER_ID && fullName(p).toLowerCase().includes(query.toLowerCase()),
+    (p) => p.id !== me && fullName(p).toLowerCase().includes(query.toLowerCase()),
   );
 
   return (
@@ -453,6 +574,11 @@ function TagList({
             </li>
           );
         })}
+        {list.length === 0 && (
+          <li className="px-4 py-10 text-center text-[14px] text-ink-3">
+            {people.length <= 1 ? "Add family on the People page to tag them." : "No one by that name."}
+          </li>
+        )}
       </ul>
     </>
   );

@@ -12,6 +12,11 @@ public interface IProfileAccessor
     Task<ProfileDto?> GetProfile(Guid familyId, Guid profileId, DateTimeOffset now);
 
     /// <summary>
+    /// The profile using this photo as its picture, if any.
+    /// </summary>
+    Task<ProfileDto?> GetProfileWithPhoto(Guid familyId, Guid mediaId, DateTimeOffset now);
+
+    /// <summary>
     /// Which of these ids are profiles in the family.
     /// </summary>
     Task<HashSet<Guid>> FindProfilesInFamily(Guid familyId, IEnumerable<Guid> profileIds);

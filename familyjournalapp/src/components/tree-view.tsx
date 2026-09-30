@@ -3,28 +3,23 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CURRENT_USER_ID, people } from "@/lib/data";
+import { useComposer } from "@/lib/composer";
 import {
   companions,
   fullName,
-  getPerson,
   isRecent,
-  kinship,
   lifespan,
   peopleInPost,
-  photoUrl,
   postInvolves,
   sharedPosts,
-  spouseOf,
 } from "@/lib/family";
-import { useStore } from "@/lib/store";
-import { NODE_H, NODE_W, PHOTO_H, layoutTree, type NodeBox } from "@/lib/tree-layout";
+import { useClock, useFamily } from "@/lib/family-context";
+import { frame } from "@/lib/photo";
+import { NODE_H, NODE_W, PHOTO_H, layoutTree, type NodeBox, type TreeLayout } from "@/lib/tree-layout";
 import type { Post } from "@/lib/types";
 import { Avatar } from "./avatar";
 import { ArrowLeftIcon, CloseIcon, FitIcon, MinusIcon, PlusIcon } from "./icons";
 import { PostSnippet } from "./post-snippet";
-
-const layout = layoutTree();
 
 type Thread = { a: string; b: string; count: number };
 type View = { x: number; y: number; scale: number };
@@ -72,20 +67,18 @@ function threadPath(A: NodeBox, B: NodeBox) {
   };
 }
 
-function relationSentence(a: string, b: string) {
-  if (a === CURRENT_USER_ID) return `${getPerson(b).firstName} is your ${kinship(a, b).toLowerCase()}`;
-  if (b === CURRENT_USER_ID) return `${getPerson(a).firstName} is your ${kinship(b, a).toLowerCase()}`;
-  return `${getPerson(b).firstName} is ${getPerson(a).firstName}'s ${kinship(a, b).toLowerCase()}`;
-}
-
 export function TreeView({
+  posts,
   initialPerson,
   initialBetween,
 }: {
+  posts: Post[];
   initialPerson?: string;
   initialBetween?: string;
 }) {
-  const { posts } = useStore();
+  const { me, graph } = useFamily();
+  const layout = layoutTree(graph);
+  const placed = (t: Thread) => layout.nodes.has(t.a) && layout.nodes.has(t.b);
   const [selected, setSelected] = useState<string | null>(initialPerson ?? null);
   const [between, setBetween] = useState<string | null>(
     initialPerson ? (initialBetween ?? null) : null,
@@ -101,12 +94,12 @@ export function TreeView({
   if (focusPost) {
     const ids = peopleInPost(focusPost);
     highlight = new Set(ids);
-    threads = threadsFor([focusPost]);
+    threads = threadsFor([focusPost]).filter(placed);
   } else if (selected && between) {
     highlight = new Set([selected, between]);
     threads = [{ a: selected, b: between, count: sharedPosts(posts, selected, between).length }];
   } else if (selected) {
-    threads = threadsFor(posts, selected);
+    threads = threadsFor(posts, selected).filter(placed);
     highlight = new Set([selected, ...threads.flatMap((t) => [t.a, t.b])]);
   }
 
@@ -120,7 +113,8 @@ export function TreeView({
   return (
     <div className="flex h-[calc(100dvh-112px-env(safe-area-inset-top)-env(safe-area-inset-bottom))] min-h-0 lg:h-[calc(100dvh-64px)]">
       <Canvas
-        focusId={initialPerson ?? CURRENT_USER_ID}
+        layout={layout}
+        focusId={initialPerson ?? me}
         posts={posts}
         selected={selected}
         highlight={highlight}
@@ -186,6 +180,7 @@ export function TreeView({
 // ---------------------------------------------------------------------------
 
 function Canvas({
+  layout,
   focusId,
   posts,
   selected,
@@ -194,6 +189,7 @@ function Canvas({
   onSelect,
   onThread,
 }: {
+  layout: TreeLayout;
   focusId: string;
   posts: Post[];
   selected: string | null;
@@ -218,9 +214,14 @@ function Canvas({
   );
   // A drag that ends on a card should not also select it.
   const suppressClick = useRef(false);
+  const { me, graph } = useFamily();
+  const { now } = useClock();
   const onSelectRef = useRef(onSelect);
+  // Handlers set up once read the current layout through this, since people can be added any time.
+  const layoutRef = useRef(layout);
   useEffect(() => {
     onSelectRef.current = onSelect;
+    layoutRef.current = layout;
   });
 
   // Null once unmounted: observers and timers can still fire during navigation or HMR.
@@ -230,6 +231,7 @@ function Canvas({
     const rect = size();
     if (!rect) return;
     const { width, height } = rect;
+    const layout = layoutRef.current;
     const scale = Math.min(1, (width - 32) / layout.width, (height - 104) / layout.height);
     setView({
       scale,
@@ -243,9 +245,10 @@ function Canvas({
     const rect = size();
     if (!rect) return;
     const { width, height } = rect;
-    const box = layout.nodes.get(id)!;
-    const spouse = spouseOf(id);
-    const partner = spouse ? layout.nodes.get(spouse) : undefined;
+    const box = layoutRef.current.nodes.get(id);
+    if (!box) return;
+    const spouse = graph.spouseOf(id);
+    const partner = spouse ? layoutRef.current.nodes.get(spouse) : undefined;
     const left = Math.min(box.x, partner?.x ?? box.x);
     const right = Math.max(box.x, partner?.x ?? box.x) + NODE_W;
     const scale = Math.min(1, (width - 40) / (right - left));
@@ -257,7 +260,7 @@ function Canvas({
   };
 
   // The observer fires once on mount too, which sets the opening view.
-  // Helpers below only touch refs and the static layout, so effects subscribe once.
+  // Helpers below only touch refs, so effects subscribe once.
   const [ready, setReady] = useState(false);
   useEffect(() => {
     const observer = new ResizeObserver(() => {
@@ -372,7 +375,8 @@ function Canvas({
     if (!rect) return;
     const { width, height } = rect;
     if (width >= 1024) return;
-    const box = layout.nodes.get(id)!;
+    const box = layoutRef.current.nodes.get(id);
+    if (!box) return;
     const { scale } = viewRef.current;
     touched.current = true;
     setView({
@@ -391,8 +395,8 @@ function Canvas({
   };
 
   const recent = new Set(
-    people
-      .filter((p) => posts.some((post) => postInvolves(post, p.id) && isRecent(post.createdAt)))
+    graph.people
+      .filter((p) => posts.some((post) => postInvolves(post, p.id) && isRecent(post.createdAt, now)))
       .map((p) => p.id),
   );
 
@@ -405,7 +409,8 @@ function Canvas({
         <div className="pointer-events-auto min-w-0 rounded-lg bg-canvas/85 pr-2 backdrop-blur-sm">
           <h1 className="display text-[26px] sm:text-[24px]">Family tree</h1>
           <p className="text-[13px] text-ink-3">
-            {people.length} people · {layout.generations} generations
+            {graph.people.length} {graph.people.length === 1 ? "person" : "people"} · {layout.generations}{" "}
+            {layout.generations === 1 ? "generation" : "generations"}
           </p>
         </div>
         <div className="pointer-events-auto flex shrink-0 overflow-hidden rounded-md border border-line bg-surface">
@@ -413,11 +418,11 @@ function Canvas({
             label="Center on you"
             onClick={() => {
               touched.current = false;
-              focusOn(CURRENT_USER_ID);
+              focusOn(me);
             }}
             className="w-auto gap-1.5 px-2.5 text-[13px]"
           >
-            <Avatar personId={CURRENT_USER_ID} size={18} />
+            <Avatar personId={me} size={18} />
             Me
           </ZoomButton>
           <ZoomButton
@@ -516,11 +521,11 @@ function Canvas({
             </g>
           </svg>
 
-          {people.map((p) => {
+          {graph.people.map((p) => {
             const box = layout.nodes.get(p.id);
             if (!box) return null;
             const isSelected = selected === p.id;
-            const isMe = p.id === CURRENT_USER_ID;
+            const isMe = p.id === me;
             return (
               <button
                 key={p.id}
@@ -540,9 +545,9 @@ function Canvas({
                   }`}
                   style={{ height: PHOTO_H }}
                 >
-                  {photoUrl(p, NODE_W, PHOTO_H) ? (
+                  {p.photo ? (
                     <Image
-                      src={photoUrl(p, NODE_W, PHOTO_H)!}
+                      src={frame(p.photo, "portrait").src}
                       alt={fullName(p)}
                       width={NODE_W}
                       height={PHOTO_H}
@@ -571,7 +576,7 @@ function Canvas({
                   {p.firstName} {p.lastName}
                 </span>
                 <span className="mt-0.5 w-full truncate text-[13px] text-ink-3">
-                  {isMe ? "You" : kinship(CURRENT_USER_ID, p.id)}
+                  {isMe ? "You" : graph.kinship(me, p.id)}
                   {lifespan(p) && <> · {lifespan(p)}</>}
                 </span>
               </button>
@@ -584,7 +589,7 @@ function Canvas({
               <button
                 key={`b-${t.a}-${t.b}`}
                 onClick={() => onThread(t)}
-                title={`${t.count} shared post${t.count > 1 ? "s" : ""}: ${fullName(getPerson(t.a))} & ${fullName(getPerson(t.b))}`}
+                title={`${t.count} shared post${t.count > 1 ? "s" : ""}: ${fullName(graph.getPerson(t.a))} & ${fullName(graph.getPerson(t.b))}`}
                 className="absolute flex h-[22px] min-w-[22px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-signal bg-surface px-1.5 text-[11px] font-semibold tabular-nums text-signal hover:bg-sunken"
                 style={{ left: mid.x, top: mid.y }}
               >
@@ -695,11 +700,13 @@ function PersonPanel({
   onBetween,
   ...list
 }: ListProps & { id: string; onClose: () => void; onBetween: (id: string) => void }) {
-  const { openComposer } = useStore();
-  const person = getPerson(id);
+  const { me, graph, href } = useFamily();
+  const { openComposer } = useComposer();
+  const person = graph.getPerson(id);
   const theirs = list.posts.filter((p) => postInvolves(p, id));
-  const together = companions(list.posts, id);
-  const isMe = id === CURRENT_USER_ID;
+  const together = companions(list.posts, id).filter((c) => graph.findPerson(c.id));
+  const isMe = id === me;
+  const addedBy = graph.findPerson(person.addedBy)?.firstName ?? "the family";
 
   return (
     <div className="flex min-h-0 flex-col">
@@ -708,21 +715,21 @@ function PersonPanel({
         <div className="min-w-0 flex-1">
           <h2 className="display text-[26px]">{fullName(person)}</h2>
           <p className="mt-0.5 text-[13px] text-ink-3">
-            {isMe ? "You" : kinship(CURRENT_USER_ID, id)}
+            {isMe ? "You" : graph.kinship(me, id)}
             {lifespan(person) && <> · {lifespan(person)}</>}
           </p>
           {person.isPlaceholder && (
             <p className="mt-1 text-[12px] text-ink-3">
               {person.lifeStatus === "deceased"
-                ? `Profile kept by ${getPerson(person.addedBy ?? CURRENT_USER_ID).firstName}`
+                ? `Profile kept by ${addedBy}`
                 : person.inviteSentAt
                   ? "Invited · hasn't joined yet"
-                  : `Added by ${getPerson(person.addedBy ?? CURRENT_USER_ID).firstName}`}
+                  : `Added by ${addedBy}`}
             </p>
           )}
           <div className="mt-3 flex flex-wrap gap-2">
             <Link
-              href={`/people/${id}`}
+              href={href(`/people/${id}`)}
               className="flex h-9 items-center whitespace-nowrap rounded-full border border-ink px-3.5 text-[14px] font-semibold hover:bg-hover"
             >
               View profile
@@ -759,10 +766,10 @@ function PersonPanel({
                   <Avatar personId={other} size={30} />
                   <span className="min-w-0 flex-1 leading-tight">
                     <span className="block truncate text-[14px] font-medium">
-                      {fullName(getPerson(other))}
+                      {fullName(graph.getPerson(other))}
                     </span>
                     <span className="text-[12px] text-ink-3">
-                      {isMe ? "Your" : `${person.firstName}'s`} {kinship(id, other).toLowerCase()}
+                      {isMe ? "Your" : `${person.firstName}'s`} {graph.kinship(id, other).toLowerCase()}
                     </span>
                   </span>
                   <span className="text-[12px] tabular-nums text-ink-3">
@@ -797,8 +804,16 @@ function BetweenPanel({
   onBack,
   ...list
 }: ListProps & { a: string; b: string; onBack: () => void }) {
-  const { openComposer } = useStore();
+  const { me, graph } = useFamily();
+  const { openComposer } = useComposer();
   const shared = sharedPosts(list.posts, a, b);
+  const first = (id: string) => graph.getPerson(id).firstName;
+  const relation =
+    a === me
+      ? `${first(b)} is your ${graph.kinship(a, b).toLowerCase()}`
+      : b === me
+        ? `${first(a)} is your ${graph.kinship(b, a).toLowerCase()}`
+        : `${first(b)} is ${first(a)}'s ${graph.kinship(a, b).toLowerCase()}`;
   return (
     <div className="flex min-h-0 flex-col">
       <div className="border-b border-line p-5">
@@ -807,7 +822,7 @@ function BetweenPanel({
           className="-ml-1.5 mb-3 flex items-center gap-1 rounded px-1.5 py-0.5 text-[13px] text-ink-2 hover:bg-hover"
         >
           <ArrowLeftIcon size={16} />
-          {getPerson(a).firstName}
+          {first(a)}
         </button>
         <div className="flex items-center gap-3">
           <span className="flex -space-x-3">
@@ -816,9 +831,9 @@ function BetweenPanel({
           </span>
           <div className="min-w-0">
             <h2 className="display text-[24px]">
-              {getPerson(a).firstName} &amp; {getPerson(b).firstName}
+              {first(a)} &amp; {first(b)}
             </h2>
-            <p className="text-[13px] text-ink-3">{relationSentence(a, b)}</p>
+            <p className="text-[13px] text-ink-3">{relation}</p>
           </div>
         </div>
       </div>
@@ -831,7 +846,7 @@ function BetweenPanel({
           <SnippetList {...list} posts={shared} />
         </div>
         <button
-          onClick={() => openComposer([a, b].filter((id) => id !== CURRENT_USER_ID))}
+          onClick={() => openComposer([a, b].filter((id) => id !== me))}
           className="mx-2 mt-4 flex h-10 w-[calc(100%-1rem)] items-center justify-center rounded-full border border-ink text-[14px] font-semibold hover:bg-hover"
         >
           Post with both of them

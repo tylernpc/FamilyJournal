@@ -1,3 +1,4 @@
+using FamilyJournalApi.Common;
 using FamilyJournalApi.Common.Enum;
 
 namespace FamilyJournalApi.Accessors.DTOs;
@@ -31,6 +32,12 @@ public class ProfileDto
     public string? Location { get; set; }
 
     public Guid? PhotoMediaId { get; set; }
+
+    public int PhotoWidth { get; set; }
+
+    public int PhotoHeight { get; set; }
+
+    public PhotoCrops? PhotoCrops { get; set; }
 
     public Guid? AddedByProfileId { get; set; }
 

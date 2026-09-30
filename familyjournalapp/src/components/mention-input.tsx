@@ -1,8 +1,8 @@
 "use client";
 
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
-import { people } from "@/lib/data";
 import { fullName } from "@/lib/family";
+import { useFamily } from "@/lib/family-context";
 import { Avatar } from "./avatar";
 
 type Props = {
@@ -21,6 +21,7 @@ export const MentionInput = forwardRef<HTMLTextAreaElement, Props>(function Ment
   { value, onChange, onSubmit, placeholder, rows = 1, className = "", autoFocus, ...aria },
   forwarded,
 ) {
+  const { people } = useFamily();
   const ref = useRef<HTMLTextAreaElement>(null);
   useImperativeHandle(forwarded, () => ref.current!);
   const [query, setQuery] = useState<string | null>(null);

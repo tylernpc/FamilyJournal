@@ -24,7 +24,7 @@ public class MediaAccessor(
         ? options.RootPath
         : Path.Combine(environment.ContentRootPath, options.RootPath);
 
-    public async Task<MediaDto> SaveMedia(Guid familyId, Guid uploadedByProfileId, Stream content, string contentType, int width, int height, DateTimeOffset createdAt)
+    public async Task<MediaDto> SaveMedia(Guid familyId, Guid uploadedByProfileId, Stream content, string contentType, int width, int height, PhotoCrops? crops, DateTimeOffset createdAt)
     {
         var media = new Media
         {
@@ -33,6 +33,7 @@ public class MediaAccessor(
             ContentType = contentType,
             Width = width,
             Height = height,
+            Crops = PhotoCrops.Serialize(crops),
             CreatedAt = createdAt
         };
         media.StorageKey = $"{familyId:N}/{media.Id:N}{ImageFormats.Extensions[contentType]}";
@@ -79,6 +80,12 @@ public class MediaAccessor(
             .ToListAsync();
 
         return media.Select(ToDto).ToList();
+    }
+
+    public async Task SetCrops(Guid mediaId, PhotoCrops? crops)
+    {
+        var json = PhotoCrops.Serialize(crops);
+        await db.Media.Where(m => m.Id == mediaId).ExecuteUpdateAsync(set => set.SetProperty(m => m.Crops, json));
     }
 
     public Stream OpenRead(string storageKey) => File.OpenRead(PathFor(storageKey));
@@ -135,6 +142,7 @@ public class MediaAccessor(
         Width = media.Width,
         Height = media.Height,
         StorageKey = media.StorageKey,
+        Crops = PhotoCrops.Parse(media.Crops),
         CreatedAt = media.CreatedAt
     };
 }

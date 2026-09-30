@@ -221,6 +221,11 @@ public class FamilyAccessor(DatabaseContext db) : IFamilyAccessor
                 return null;
             }
 
+            // Any other open invites for this profile can no longer be used, so they shouldn't show as pending
+            await db.Invites
+                .Where(i => i.ProfileId == claimProfileId && i.Id != join.InviteId && i.ClaimedAt == null && i.RevokedAt == null)
+                .ExecuteUpdateAsync(set => set.SetProperty(i => i.RevokedAt, join.JoinedAt));
+
             profileId = claimProfileId;
         }
         else

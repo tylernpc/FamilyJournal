@@ -3,6 +3,7 @@ using System.Threading.RateLimiting;
 using FamilyJournalApi.Engines;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -81,6 +82,11 @@ public static class AuthConfiguration
     /// </summary>
     public static IServiceCollection AddWebClient(this IServiceCollection services, IConfiguration configuration)
     {
+        // The web app's server calls the API for each person, so the rate limits need the address it
+        // forwards. Only proxies on this machine are trusted by default; add the web server's address
+        // to KnownProxies (or KnownNetworks) when they run on separate hosts.
+        services.Configure<ForwardedHeadersOptions>(options => options.ForwardedHeaders = ForwardedHeaders.XForwardedFor);
+
         var origins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 
         services.AddCors(cors => cors.AddDefaultPolicy(policy => policy

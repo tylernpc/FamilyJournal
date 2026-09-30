@@ -37,7 +37,7 @@ public class FamilyFixture
         Families = new FamilyManager(familyAccessor, Users, profileAccessor, mediaAccessor, TestCredentials.Engine(Clock), Events, Clock);
         Profiles = new ProfileManager(profileAccessor, new FakeRelationshipAccessor(Db), mediaAccessor, new TreeEngine(), Clock);
         Posts = new PostManager(new FakePostAccessor(Db), profileAccessor, mediaAccessor, Events, Options.Create(new MediaOptions()), Clock);
-        Notifications = new NotificationManager(NotificationStore, familyAccessor);
+        Notifications = new NotificationManager(NotificationStore, familyAccessor, mediaAccessor, Clock);
 
         (FamilyId, Emma) = Db.AddFamily();
     }
@@ -51,11 +51,18 @@ public class FamilyFixture
 
     public ProfileDto Placeholder(string name, Guid? addedBy = null) => Db.AddProfile(FamilyId, name, addedBy: addedBy ?? Emma.Id);
 
-    // An uploaded photo, in this family unless another is given
-    public Guid Photo(Guid? familyId = null)
+    // An uploaded photo, in this family and from Emma unless told otherwise
+    public Guid Photo(Guid? familyId = null, Guid? uploadedBy = null)
     {
         var id = Guid.NewGuid();
-        Db.Media[id] = new MediaDto { Id = id, FamilyId = familyId ?? FamilyId, Width = 1200, Height = 900 };
+        Db.Media[id] = new MediaDto
+        {
+            Id = id,
+            FamilyId = familyId ?? FamilyId,
+            UploadedByProfileId = uploadedBy ?? Emma.Id,
+            Width = 1200,
+            Height = 900
+        };
         return id;
     }
 }

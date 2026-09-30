@@ -2,35 +2,42 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CURRENT_USER_ID } from "@/lib/data";
-import { fullName, getPerson, kinship } from "@/lib/family";
-import { useStore } from "@/lib/store";
-import type { Post } from "@/lib/types";
+import { fullName } from "@/lib/family";
+import { useFamily } from "@/lib/family-context";
+import type { Reaction } from "@/lib/types";
 import { Avatar } from "./avatar";
 import { EmojiPicker } from "./emoji-picker";
 import { CloseIcon, SmilePlusIcon } from "./icons";
 import { Sheet } from "./sheet";
 
-function countsByEmoji(post: Post) {
+function countsByEmoji(reactions: Reaction[]) {
   const counts = new Map<string, number>();
-  for (const r of post.reactions) counts.set(r.emoji, (counts.get(r.emoji) ?? 0) + 1);
+  for (const r of reactions) counts.set(r.emoji, (counts.get(r.emoji) ?? 0) + 1);
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
 }
 
 // Each emoji used on the post as a chip with its count, plus "+" for any other emoji.
-export function ReactionBar({ post }: { post: Post }) {
-  const { react } = useStore();
+// Tapping your own emoji again takes it back.
+export function ReactionBar({
+  reactions,
+  onReact,
+}: {
+  reactions: Reaction[];
+  onReact: (emoji: string | null) => void;
+}) {
+  const { me } = useFamily();
   const [picking, setPicking] = useState(false);
-  const mine = post.reactions.find((r) => r.personId === CURRENT_USER_ID)?.emoji;
+  const mine = reactions.find((r) => r.personId === me)?.emoji;
+  const toggle = (emoji: string) => onReact(emoji === mine ? null : emoji);
 
   return (
     <div className="relative flex flex-wrap items-center gap-1.5">
-      {countsByEmoji(post).map(([emoji, count]) => {
+      {countsByEmoji(reactions).map(([emoji, count]) => {
         const isMine = emoji === mine;
         return (
           <button
             key={emoji}
-            onClick={() => react(post.id, emoji)}
+            onClick={() => toggle(emoji)}
             aria-pressed={isMine}
             aria-label={`${emoji} ${count}${isMine ? ", yours" : ""}`}
             className={`flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[14px] tabular-nums ${
@@ -61,7 +68,7 @@ export function ReactionBar({ post }: { post: Post }) {
             selected={mine}
             onClose={() => setPicking(false)}
             onPick={(emoji) => {
-              react(post.id, emoji);
+              toggle(emoji);
               setPicking(false);
             }}
           />
@@ -72,13 +79,12 @@ export function ReactionBar({ post }: { post: Post }) {
 }
 
 // "Carol, Luis and 6 others" — opens the list of who reacted with what.
-export function ReactionSummary({ post }: { post: Post }) {
+export function ReactionSummary({ reactions }: { reactions: Reaction[] }) {
+  const { me, graph } = useFamily();
   const [open, setOpen] = useState(false);
-  if (!post.reactions.length) return null;
+  if (!reactions.length) return null;
 
-  const names = post.reactions.map((r) =>
-    r.personId === CURRENT_USER_ID ? "You" : getPerson(r.personId).firstName,
-  );
+  const names = reactions.map((r) => (r.personId === me ? "You" : graph.getPerson(r.personId).firstName));
   // "You" reads best first.
   names.sort((a, b) => (a === "You" ? -1 : b === "You" ? 1 : 0));
   const label =
@@ -91,22 +97,23 @@ export function ReactionSummary({ post }: { post: Post }) {
       <button onClick={() => setOpen(true)} className="text-[13px] text-ink-3 hover:text-ink-2">
         {label}
       </button>
-      {open && <ReactionsSheet post={post} onClose={() => setOpen(false)} />}
+      {open && <ReactionsSheet reactions={reactions} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-function ReactionsSheet({ post, onClose }: { post: Post; onClose: () => void }) {
+function ReactionsSheet({ reactions, onClose }: { reactions: Reaction[]; onClose: () => void }) {
+  const { me, graph, href } = useFamily();
   const [tab, setTab] = useState<string>("all");
-  const counts = countsByEmoji(post);
-  const list = post.reactions.filter((r) => tab === "all" || r.emoji === tab);
+  const counts = countsByEmoji(reactions);
+  const list = reactions.filter((r) => tab === "all" || r.emoji === tab);
 
   return (
     <Sheet label="Reactions" onClose={onClose}>
       <div className="flex items-center gap-1 border-b border-line px-2">
         <div className="no-scrollbar flex flex-1 overflow-x-auto">
           <Tab active={tab === "all"} onClick={() => setTab("all")}>
-            All {post.reactions.length}
+            All {reactions.length}
           </Tab>
           {counts.map(([emoji, n]) => (
             <Tab key={emoji} active={tab === emoji} onClick={() => setTab(emoji)}>
@@ -126,16 +133,14 @@ function ReactionsSheet({ post, onClose }: { post: Post; onClose: () => void }) 
         {list.map((r) => (
           <li key={r.personId}>
             <Link
-              href={`/people/${r.personId}`}
+              href={href(`/people/${r.personId}`)}
               className="flex items-center gap-3 px-4 py-2 hover:bg-hover"
             >
               <Avatar personId={r.personId} size={44} />
               <span className="flex-1 leading-tight">
-                <span className="block text-[15px] font-semibold">
-                  {fullName(getPerson(r.personId))}
-                </span>
+                <span className="block text-[15px] font-semibold">{fullName(graph.getPerson(r.personId))}</span>
                 <span className="text-[13px] text-ink-3">
-                  {r.personId === CURRENT_USER_ID ? "You" : kinship(CURRENT_USER_ID, r.personId)}
+                  {r.personId === me ? "You" : graph.kinship(me, r.personId)}
                 </span>
               </span>
               <span className="text-[22px]">{r.emoji}</span>

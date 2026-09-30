@@ -1,3 +1,4 @@
+using FamilyJournalApi.Common;
 using FamilyJournalApi.Managers.Models;
 
 namespace FamilyJournalApi.Managers;
@@ -36,7 +37,12 @@ public interface IPostManager
     /// Stores a photo for use in posts or as a profile picture. The client supplies the pixel size,
     /// since it already knows it and decoding images here would need a heavy dependency.
     /// </summary>
-    Task<Result<MediaModel>> UploadPhoto(FamilyCaller caller, Stream content, long length, int width, int height);
+    Task<Result<MediaModel>> UploadPhoto(FamilyCaller caller, Stream content, long length, int width, int height, PhotoCrops? crops);
+
+    /// <summary>
+    /// Reframes a photo. Allowed for whoever uploaded it, an admin, or anyone who can edit the profile it's on.
+    /// </summary>
+    Task<Result<MediaModel>> SetCrops(FamilyCaller caller, Guid mediaId, PhotoCrops? crops);
 
     /// <summary>
     /// The photo behind a signed URL, or null if the signature is wrong or expired.

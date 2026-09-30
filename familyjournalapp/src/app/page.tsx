@@ -1,14 +1,14 @@
-import { Feed } from "@/components/feed";
-import { findPerson } from "@/lib/family";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { getAccount } from "@/lib/server/family";
+import { FAMILY_COOKIE } from "@/lib/server/session-cookies";
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const params = await searchParams;
-  const person =
-    typeof params.person === "string" && findPerson(params.person) ? params.person : undefined;
+// Sends you to the family you last looked at, or to starting one.
+export default async function Home() {
+  const account = await getAccount();
+  if (!account.families.length) redirect("/welcome");
 
-  return <Feed personFilter={person} />;
+  const last = (await cookies()).get(FAMILY_COOKIE)?.value;
+  const family = account.families.find((f) => f.familyId === last) ?? account.families[0];
+  redirect(`/f/${family.familyId}`);
 }

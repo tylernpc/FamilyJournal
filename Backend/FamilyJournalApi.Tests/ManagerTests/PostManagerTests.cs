@@ -1,3 +1,4 @@
+using FamilyJournalApi.Common;
 using FamilyJournalApi.Managers.Events;
 using FamilyJournalApi.Managers.Models;
 
@@ -142,12 +143,83 @@ public class PostManagerTests
         byte[] jpeg = [0xFF, 0xD8, 0xFF, 0xE0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3];
         byte[] pdf = "%PDF-1.7 not a photo"u8.ToArray();
 
-        var ok = await f.Posts.UploadPhoto(f.AsEmma, new MemoryStream(jpeg), jpeg.Length, 1200, 900);
-        var bad = await f.Posts.UploadPhoto(f.AsEmma, new MemoryStream(pdf), pdf.Length, 1200, 900);
-        var noSize = await f.Posts.UploadPhoto(f.AsEmma, new MemoryStream(jpeg), jpeg.Length, 0, 0);
+        var ok = await f.Posts.UploadPhoto(f.AsEmma, new MemoryStream(jpeg), jpeg.Length, 1200, 900, null);
+        var bad = await f.Posts.UploadPhoto(f.AsEmma, new MemoryStream(pdf), pdf.Length, 1200, 900, null);
+        var noSize = await f.Posts.UploadPhoto(f.AsEmma, new MemoryStream(jpeg), jpeg.Length, 0, 0, null);
 
         Assert.Equal("image/jpeg", ok.Value!.ContentType);
         Assert.Equal(ResultError.Invalid, bad.Error);
         Assert.Equal(ResultError.Invalid, noSize.Error);
+    }
+
+    private static PhotoCrops Portrait(double x = 0.2, double width = 0.5) =>
+        new() { Portrait = new CropRect { X = x, Y = 0, Width = width, Height = 0.9 } };
+
+    [Fact]
+    public async Task Crops_are_saved_as_numbers_and_the_photo_stays_whole()
+    {
+        var photo = f.Photo();
+
+        var result = await f.Posts.SetCrops(f.AsEmma, photo, Portrait());
+
+        Assert.Equal(0.5, result.Value!.Crops!.Portrait!.Width);
+        Assert.Equal(0.5, f.Db.Media[photo].Crops!.Portrait!.Width);
+        Assert.Equal(1200, result.Value.Width);
+    }
+
+    [Fact]
+    public async Task Crops_must_stay_inside_the_photo()
+    {
+        var photo = f.Photo();
+
+        var outside = await f.Posts.SetCrops(f.AsEmma, photo, Portrait(x: 0.8, width: 0.5));
+        var sliver = await f.Posts.SetCrops(f.AsEmma, photo, Portrait(width: 0.01));
+        byte[] jpeg = [0xFF, 0xD8, 0xFF, 0xE0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3];
+        var upload = await f.Posts.UploadPhoto(f.AsEmma, new MemoryStream(jpeg), jpeg.Length, 1200, 900, Portrait(x: -0.2));
+
+        Assert.Equal(ResultError.Invalid, outside.Error);
+        Assert.Equal(ResultError.Invalid, sliver.Error);
+        Assert.Equal(ResultError.Invalid, upload.Error);
+    }
+
+    [Fact]
+    public async Task Clearing_crops_shows_the_whole_photo_again()
+    {
+        var photo = f.Photo();
+        await f.Posts.SetCrops(f.AsEmma, photo, Portrait());
+
+        await f.Posts.SetCrops(f.AsEmma, photo, new PhotoCrops());
+
+        Assert.Null(f.Db.Media[photo].Crops);
+    }
+
+    [Fact]
+    public async Task Only_the_uploader_an_admin_or_someone_who_can_edit_the_profile_can_reframe()
+    {
+        var marco = f.Member("Marco");
+        var lena = f.Member("Lena");
+        var june = f.Placeholder("June");
+        var lenasPost = f.Photo(uploadedBy: lena.Id);
+        var junesPortrait = f.Photo(uploadedBy: lena.Id);
+        f.Db.Profiles[june.Id].PhotoMediaId = junesPortrait;
+
+        var strangerOnPost = await f.Posts.SetCrops(f.As(marco), lenasPost, Portrait());
+        var adminOnPost = await f.Posts.SetCrops(f.AsEmma, lenasPost, Portrait());
+        // Anyone can edit a placeholder, so anyone can reframe its picture
+        var memberOnPlaceholder = await f.Posts.SetCrops(f.As(marco), junesPortrait, Portrait());
+
+        Assert.Equal(ResultError.Forbidden, strangerOnPost.Error);
+        Assert.True(adminOnPost.Succeeded);
+        Assert.True(memberOnPlaceholder.Succeeded);
+    }
+
+    [Fact]
+    public async Task Photos_from_another_family_cant_be_reframed()
+    {
+        var elsewhere = f.Photo(familyId: Guid.NewGuid());
+
+        var result = await f.Posts.SetCrops(f.AsEmma, elsewhere, Portrait());
+
+        Assert.Equal(ResultError.NotFound, result.Error);
     }
 }

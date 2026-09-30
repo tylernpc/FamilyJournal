@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FamilyJournalApi.Common;
 using FamilyJournalApi.Common.Enum;
 
 namespace FamilyJournalApi.Managers.Models;
@@ -57,6 +58,9 @@ public class PhotoModel
     public int Height { get; set; }
 
     public string? AltText { get; set; }
+
+    // How each place frames it; Url is always the whole original
+    public PhotoCrops? Crops { get; set; }
 }
 
 /// <summary>

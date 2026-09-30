@@ -1,15 +1,46 @@
-import type {
-  AppNotification,
-  Person,
-  Post,
-  Reaction,
-  Relationship,
-} from "./types";
+// The Harlow family: the demo data scripts/seed.ts loads into the API.
+// Ids here are only for linking things up; the API assigns real ones.
 
-// Mock data for the MVP UI. Timestamps are fixed relative to NOW so the
-// server and client render the same relative times.
-export const NOW = new Date("2026-09-24T10:00:00-06:00");
+type Person = {
+  id: string;
+  // Unsplash photo id
+  photo?: string;
+  firstName: string;
+  lastName: string;
+  maidenName?: string;
+  sex?: "f" | "m";
+  birthDate?: string;
+  deathDate?: string;
+  lifeStatus: "living" | "deceased";
+  bio?: string;
+  location?: string;
+  // true: stays in the tree without an account; false: gets an account and joins
+  isPlaceholder: boolean;
+  addedBy?: string;
+  inviteSentAt?: string;
+  role?: "admin" | "member";
+  joinedAt?: string;
+};
 
+type Relationship = { from: string; to: string; type: "parentOf" | "spouseOf"; since?: string };
+
+type Reaction = { personId: string; emoji: string };
+
+type Photo = { src: string; alt: string; width: number; height: number };
+
+type Post = {
+  id: string;
+  authorId: string;
+  createdAt: string;
+  text: string;
+  photos?: Photo[];
+  tagged: string[];
+  lifeEvent?: { type: string; label?: string; title: string; date: string };
+  reactions: Reaction[];
+  comments: { id: string; authorId: string; text: string; createdAt: string }[];
+};
+
+// The person the demo signs in as.
 export const CURRENT_USER_ID = "emma";
 
 export const family = {
@@ -564,69 +595,5 @@ export const initialPosts: Post[] = [
       "carol:❤️ diego:❤️ emma:❤️ diane:👍 robert:👍",
     ),
     comments: [],
-  },
-];
-
-export const initialNotifications: AppNotification[] = [
-  {
-    id: "n1",
-    type: "postCreated",
-    actorId: "diego",
-    postId: "p-diego-job",
-    createdAt: "2026-09-23T20:14:00-06:00",
-    read: false,
-    preview: "Started as an associate at Pacheco & Reyes",
-  },
-  {
-    id: "n2",
-    type: "commentAdded",
-    actorId: "diane",
-    postId: "p-pie",
-    createdAt: "2026-09-21T18:22:00-06:00",
-    read: false,
-    preview: "Save me a slice of whatever survived!",
-  },
-  {
-    id: "n3",
-    type: "commentAdded",
-    actorId: "carol",
-    postId: "p-pie",
-    createdAt: "2026-09-21T17:05:00-06:00",
-    read: false,
-    preview: "She taught me the exact same thing in 1974.",
-  },
-  {
-    id: "n4",
-    type: "reactionAdded",
-    emoji: "❤️",
-    actorId: "robert",
-    postId: "p-pie",
-    createdAt: "2026-09-21T16:58:00-06:00",
-    read: true,
-  },
-  {
-    id: "n5",
-    type: "postCreated",
-    actorId: "robert",
-    postId: "p-logbook",
-    createdAt: "2026-09-18T11:02:00-06:00",
-    read: true,
-    preview: "Found Dad's logbook from the Midway, 1952.",
-  },
-  {
-    id: "n6",
-    type: "memberJoined",
-    actorId: "luis",
-    createdAt: "2026-09-05T14:10:00-06:00",
-    read: true,
-  },
-  {
-    id: "n7",
-    type: "memberTagged",
-    actorId: "sam",
-    postId: "p-theo",
-    createdAt: "2026-09-02T07:15:00-06:00",
-    read: true,
-    preview: "Theo James Okafor",
   },
 ];

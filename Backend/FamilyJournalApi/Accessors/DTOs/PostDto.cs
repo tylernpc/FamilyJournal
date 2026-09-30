@@ -1,3 +1,4 @@
+using FamilyJournalApi.Common;
 using FamilyJournalApi.Common.Enum;
 
 namespace FamilyJournalApi.Accessors.DTOs;
@@ -45,6 +46,8 @@ public class PostPhotoDto
     public int Height { get; set; }
 
     public string? AltText { get; set; }
+
+    public PhotoCrops? Crops { get; set; }
 }
 
 /// <summary>
@@ -110,6 +113,8 @@ public class MediaDto
 
     public string StorageKey { get; set; } = string.Empty;
 
+    public PhotoCrops? Crops { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 }
 
@@ -128,6 +133,9 @@ public class NotificationDto
     public string? Emoji { get; set; }
 
     public string? Preview { get; set; }
+
+    // First photo of the post it's about, for a thumbnail; filled in on read
+    public Guid? PostPhotoMediaId { get; set; }
 
     public bool IsRead { get; set; }
 

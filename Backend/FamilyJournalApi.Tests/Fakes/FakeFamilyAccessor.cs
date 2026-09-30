@@ -135,6 +135,11 @@ public class FakeFamilyAccessor(FakeDatabase db) : IFamilyAccessor
             profile.UserId = join.UserId;
             profile.IsPlaceholder = false;
             profileId = claimId;
+
+            foreach (var other in db.Invites.Values.Where(i => i.ProfileId == claimId && i.Id != invite.Id && i.ClaimedAt is null && i.RevokedAt is null))
+            {
+                other.RevokedAt = join.JoinedAt;
+            }
         }
         else
         {

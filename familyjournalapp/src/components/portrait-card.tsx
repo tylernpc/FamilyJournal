@@ -1,6 +1,10 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import { fullName, getPerson, photoUrl } from "@/lib/family";
+import { fullName } from "@/lib/family";
+import { useFamily } from "@/lib/family-context";
+import { frame } from "@/lib/photo";
 
 // Same portrait treatment as the tree: the photo is the card, name underneath.
 export function PortraitCard({
@@ -12,16 +16,16 @@ export function PortraitCard({
   caption?: string;
   width?: number;
 }) {
-  const person = getPerson(personId);
+  const { graph, href } = useFamily();
+  const person = graph.getPerson(personId);
   const height = Math.round(width * 1.3);
-  const src = photoUrl(person, width, height);
 
   return (
-    <Link href={`/people/${personId}`} className="group block min-w-0">
+    <Link href={href(`/people/${personId}`)} className="group block min-w-0">
       <span className="relative block aspect-[10/13] overflow-hidden rounded-[4px] bg-sunken">
-        {src ? (
+        {person.photo ? (
           <Image
-            src={src}
+            src={frame(person.photo, "portrait").src}
             alt={fullName(person)}
             width={width}
             height={height}

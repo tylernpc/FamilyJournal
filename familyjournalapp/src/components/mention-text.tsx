@@ -1,28 +1,27 @@
+"use client";
+
 import Link from "next/link";
-import { people } from "@/lib/data";
 import { fullName } from "@/lib/family";
+import { useFamily } from "@/lib/family-context";
 
-const names = people
-  .map((p) => ({ id: p.id, name: fullName(p) }))
-  .sort((a, b) => b.name.length - a.name.length);
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const pattern = new RegExp(
-  `@(${names.map((n) => n.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
-  "g",
-);
-
+// Post and comment text with "@Full Name" mentions linked to profiles.
 export function MentionText({ text }: { text: string }) {
+  const { people, href } = useFamily();
+  const names = people
+    .map((p) => ({ id: p.id, name: fullName(p) }))
+    .sort((a, b) => b.name.length - a.name.length);
+  if (!names.length || !text.includes("@")) return <>{text}</>;
+
+  const pattern = new RegExp(`@(${names.map((n) => escape(n.name)).join("|")})`, "g");
   const parts: React.ReactNode[] = [];
   let last = 0;
   for (const match of text.matchAll(pattern)) {
     const person = names.find((n) => n.name === match[1])!;
     parts.push(text.slice(last, match.index));
     parts.push(
-      <Link
-        key={match.index}
-        href={`/people/${person.id}`}
-        className="font-semibold hover:underline"
-      >
+      <Link key={match.index} href={href(`/people/${person.id}`)} className="font-semibold hover:underline">
         {person.name}
       </Link>,
     );

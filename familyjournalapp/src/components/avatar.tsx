@@ -1,5 +1,9 @@
+"use client";
+
 import Image from "next/image";
-import { fullName, getPerson, initials, photoUrl } from "@/lib/family";
+import { fullName, initials } from "@/lib/family";
+import { frame } from "@/lib/photo";
+import { useFamily } from "@/lib/family-context";
 
 const TONES = 6;
 
@@ -20,18 +24,17 @@ export function Avatar({
   activity?: boolean;
   className?: string;
 }) {
-  const person = getPerson(personId);
+  const person = useFamily().graph.getPerson(personId);
   const deceased = person.lifeStatus === "deceased";
-  const src = photoUrl(person, size);
 
   return (
     <span
       className={`relative inline-flex shrink-0 rounded-full ${className}`}
       style={{ width: size, height: size }}
     >
-      {src ? (
+      {person.photo ? (
         <Image
-          src={src}
+          src={frame(person.photo, "avatar").src}
           alt={fullName(person)}
           width={size}
           height={size}

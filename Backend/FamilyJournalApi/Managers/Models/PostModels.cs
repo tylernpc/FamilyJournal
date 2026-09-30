@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FamilyJournalApi.Common;
 using FamilyJournalApi.Common.Enum;
 
 namespace FamilyJournalApi.Managers.Models;
@@ -48,7 +49,9 @@ public class LifeEventModel
     [StringLength(80, MinimumLength = 1)]
     public string Title { get; set; } = string.Empty;
 
-    public DateOnly Date { get; set; }
+    // Nullable so a missing date fails validation instead of defaulting to year 1
+    [Required]
+    public DateOnly? Date { get; set; }
 }
 
 public class ReactionModel
@@ -133,6 +136,14 @@ public class MediaModel
     public int Width { get; set; }
 
     public int Height { get; set; }
+
+    public PhotoCrops? Crops { get; set; }
+}
+
+public class SetCropsRequest
+{
+    // Leave out (or send no rectangles) to show the whole photo everywhere
+    public PhotoCrops? Crops { get; set; }
 }
 
 public class NotificationModel
@@ -148,6 +159,9 @@ public class NotificationModel
     public string? Emoji { get; set; }
 
     public string? Preview { get; set; }
+
+    // The post's first photo, signed and temporary
+    public string? PostPhotoUrl { get; set; }
 
     public bool IsRead { get; set; }
 

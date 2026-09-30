@@ -306,7 +306,16 @@ public class FamilyManager(
         FirstName = profile.FirstName,
         LastName = profile.LastName,
         BirthYear = profile.BirthDate?.Year,
-        PhotoUrl = profile.PhotoMediaId is { } mediaId ? mediaAccessor.GetSignedUrl(mediaId, now) : null
+        Photo = profile.PhotoMediaId is { } mediaId
+            ? new PhotoModel
+            {
+                MediaId = mediaId,
+                Url = mediaAccessor.GetSignedUrl(mediaId, now),
+                Width = profile.PhotoWidth,
+                Height = profile.PhotoHeight,
+                Crops = profile.PhotoCrops
+            }
+            : null
     };
 
     private static FamilyModel ToModel(FamilyDto dto) => new()

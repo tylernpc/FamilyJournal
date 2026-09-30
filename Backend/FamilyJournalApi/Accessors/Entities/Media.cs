@@ -21,5 +21,8 @@ public class Media : IdGeneratedModel
 
     public string StorageKey { get; set; } = string.Empty;
 
+    // PhotoCrops as JSON; null shows the whole photo everywhere
+    public string? Crops { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 }
